@@ -158,7 +158,7 @@ write("eda_cat", ["column", "label", "value", "count", "pct", "revenue"], cat)
 # --------------------------------------------- 5. missingness over time
 # The markdown columns are the whole missing-data story, so show when.
 miss_t = []
-by_month = df.groupby([df["Date"].dt.to_period("M")])
+by_month = df.groupby(df["Date"].dt.to_period("M"))
 for per, grp in by_month:
     label = str(per)
     for c in MD + ["CPI", "Unemployment"]:

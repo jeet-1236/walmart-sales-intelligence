@@ -11,6 +11,15 @@ That page is the static build in [`docs/`](docs/). The same dashboard also exist
 
 ![tabs: Overview, Business impact, Stores, Statistics, Forecast, Method](https://img.shields.io/badge/tabs-6-informational)
 
+## Report
+
+A Word write-up of the whole analysis is in the repository:
+**[Walmart Sales Intelligence.docx](Walmart%20Sales%20Intelligence.docx)** —
+27 sections, 15 figures and 12 tables, with the live dashboard and repository
+links on the first page. Its figures are rendered by `build_report_figures.py`
+from the same tables the dashboard reads, so the document and the dashboard
+cannot disagree.
+
 ## What it shows
 
 | Tab | Contents |
