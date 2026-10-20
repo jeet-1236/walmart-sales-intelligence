@@ -14,7 +14,7 @@ import os
 import re
 import shutil
 
-SRC = "dashboard_page.html"
+SRC = "dashboard_bi.html"
 SOURCES = "dashboard_sources"
 OUT = "docs"
 
@@ -23,10 +23,10 @@ page = io.open(SRC, encoding="utf-8").read()
 # The artifact page is <style>…</style> + <div class="wsi">…</div> + 5 scripts.
 styles = re.findall(r"<style>(.*?)</style>", page, re.S)
 scripts = re.findall(r"<script>(.*?)</script>", page, re.S)
-body = re.search(r'(<div class="wsi">.*?</div>)\s*(?:<script>|$)', page, re.S)
-assert styles and scripts and body, "unexpected shape of dashboard_page.html"
+body = re.search(r'(<div class="bi">.*</div>)\s*<script>', page, re.S)
+assert styles and scripts and body, "unexpected shape of " + SRC
 body_html = body.group(1)
-assert len(scripts) == 5, f"expected 5 script blocks, found {len(scripts)}"
+assert len(scripts) >= 3, f"expected at least 3 script blocks, found {len(scripts)}"
 
 ids = sorted(f[:-4] for f in os.listdir(SOURCES) if f.endswith(".csv"))
 

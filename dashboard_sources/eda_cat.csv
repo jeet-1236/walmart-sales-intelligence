@@ -1,0 +1,23 @@
+column,label,value,count,pct,revenue
+Type,Store format,A,215478,51.113,4331014723.0
+Type,Store format,B,163495,38.782,2000700737.0
+Type,Store format,C,42597,10.104,405503528.0
+IsHoliday,Holiday week,False,391909,92.964,6231919436.0
+IsHoliday,Holiday week,True,29661,7.036,505299552.0
+Year,Year,2010,140679,33.37,2288886120.0
+Year,Year,2011,153453,36.4,2448200007.0
+Year,Year,2012,127438,30.229,2000132859.0
+Month,Month,1,23545,5.585,332598438.0
+Month,Month,2,35526,8.427,568727890.0
+Month,Month,3,38451,9.121,592785901.0
+Month,Month,4,41332,9.804,646859785.0
+Month,Month,5,35314,8.377,557125572.0
+Month,Month,6,38137,9.046,622629887.0
+Month,Month,7,40980,9.721,650000977.0
+Month,Month,8,38169,9.054,613090209.0
+Month,Month,9,38339,9.094,578761179.0
+Month,Month,10,38362,9.1,584784788.0
+Month,Month,11,23613,5.601,413015725.0
+Month,Month,12,29802,7.069,576838635.0
+Store_cardinality,Store levels,distinct,45,0.0107,
+Dept_cardinality,Dept levels,distinct,81,0.0192,

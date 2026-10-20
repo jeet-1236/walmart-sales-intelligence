@@ -1,0 +1,18 @@
+metric,label,value,note
+rows,Rows in the merged table,421570,
+columns,Columns,18,
+duplicate_keys,Duplicate Store-Dept-Date keys,0,a value above zero would break the grain
+complete_rows,Rows with no missing value at all,97056,
+complete_pct,Share of rows fully complete,23.02,percent
+any_missing_cols,Columns with at least one missing value,5,
+negative_sales,Records with negative weekly sales,1285,net returns exceeded sales
+zero_sales,Records with exactly zero sales,73,
+markdown_first,First date any markdown is recorded,2011-11-11,
+markdown_coverage,Share of rows with any markdown recorded,35.92,percent
+date_min,First week,2010-02-05,
+date_max,Last week,2012-10-26,
+weeks,Distinct weeks,143,
+stores,Distinct stores,45,
+depts,Distinct departments,81,
+store_dept_pairs,Distinct store-department pairs,3331,
+grain_completeness,Share of the full store x dept x week grid present,80.88,percent
