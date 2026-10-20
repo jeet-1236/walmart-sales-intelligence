@@ -5,7 +5,9 @@ An interactive dashboard over 421,570 Walmart store-department-week sales record
 eight statistical experiments and a business-impact layer, and every figure on the
 page is read from a pre-computed table rather than recalculated in the browser.
 
-**Live app:** _add your Streamlit URL here after deploying_
+**Live dashboard:** <https://jeet-1236.github.io/walmart-sales-intelligence/> — no sign-in, nothing to install.
+
+That page is the static build in [`docs/`](docs/). The same dashboard also exists as a Streamlit app ([`app.py`](app.py)) if you would rather run it as a Python service; see *Deploying to Streamlit Community Cloud* below.
 
 ![tabs: Overview, Business impact, Stores, Statistics, Forecast, Method](https://img.shields.io/badge/tabs-6-informational)
 
@@ -52,11 +54,13 @@ without the raw dataset present.
 
 ## Deploying to Streamlit Community Cloud
 
-1. Push this repository to GitHub.
-2. Go to [share.streamlit.io](https://share.streamlit.io) and sign in with GitHub.
-3. **Create app** → **Deploy a public app from GitHub**.
-4. Pick this repository, branch `main`, main file path `app.py`.
-5. **Deploy.** The first build takes a couple of minutes.
+Optional — the GitHub Pages build above is already live. To run the Streamlit
+version as a hosted service instead:
+
+1. Go to [share.streamlit.io](https://share.streamlit.io) and sign in with GitHub.
+2. **Create app** → **Deploy a public app from GitHub**.
+3. Pick this repository, branch `main`, main file path `app.py`.
+4. **Deploy.** The first build takes a couple of minutes.
 
 Anyone with the resulting `*.streamlit.app` URL can then open it, with no sign-in.
 
@@ -78,6 +82,7 @@ python build_dashboard_extras.py    # 2 more tables + 2 columns
 | `build_dashboard_sources.py` | Flattens that JSON into 18 tidy CSVs, one per chart group |
 | `build_dashboard_extras.py` | Adds the per-store weekly series, the store × department matrix, and growth/returns columns |
 | `app.py` | The Streamlit dashboard |
+| `build_pages.py` | Wraps the artifact page into the standalone `docs/` site served by GitHub Pages |
 
 ## Method notes
 
