@@ -1,0 +1,65 @@
+Mini Project Workflow (Walmart Dataset)
+
+We used the Walmart dataset consisting of four files: train, test, stores, and features. The objective was to perform all data analysis experiments using a single integrated dataset.
+
+Step 1: Data Integration
+Merge datasets using common keys:
+Store → merge train with stores
+Store + Date → merge with features
+Final dataset contains:
+Sales, store details, and economic indicators
+Step 2: Data Preprocessing
+Convert Date column to datetime format
+Handle missing values (especially Markdown fields)
+Sort data if required
+Select relevant numerical features
+Step 3: Experiment-wise Analysis
+
+Exp 1: Descriptive Statistics
+
+Compute quartiles (Q1, Q2, Q3)
+Calculate IQR and detect outliers
+Visualize using boxplot
+
+Exp 2: Linear Regression
+
+Predict Weekly_Sales using variables like Temperature, Fuel_Price, CPI
+Evaluate using R² and coefficients
+
+Exp 3: Sampling
+
+Apply random sampling on dataset
+Compare sample vs population statistics
+
+Exp 4: Clustering (K-Means)
+
+Use features like sales, unemployment, CPI
+Determine optimal K (Elbow method)
+Analyze store clusters
+
+Exp 5: Probability Distribution
+
+Treat Weekly_Sales as random variable
+Compute mean, variance, and distribution
+
+Exp 6: Theoretical Distributions
+
+Compare data with Normal / Poisson distribution
+Analyze skewness and kurtosis
+
+Exp 7: Statistical Inference
+
+Estimate mean sales
+Perform hypothesis testing (e.g., holiday vs non-holiday sales)
+Analyze correlation
+
+Exp 8: Time Series Analysis
+
+Use Date column
+Plot sales trend over time
+Decompose time series
+Forecast future sales
+Step 4: Conclusion
+Integrated dataset helps understand sales behavior
+Applied statistical, machine learning, and time series techniques
+Derived insights for business decision-making
