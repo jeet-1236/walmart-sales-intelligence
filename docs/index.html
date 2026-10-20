@@ -1,0 +1,3763 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Walmart Sales Intelligence</title>
+<meta name="description" content="Eight statistical experiments and a business-impact layer over 421,570 Walmart store-week sales records.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<style>
+
+/* Layout: one centred column; cards carry the charts, tiles the figures.
+   Colour: a steel blue leads, ochre and sage follow, brick reserved for
+   "below baseline". Type: IBM Plex Sans throughout, Plex Serif for figures. */
+:root {
+  color-scheme: light;
+  --font-anthropic-sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, sans-serif;
+  --font-anthropic-serif: "IBM Plex Serif", Georgia, "Times New Roman", serif;
+
+  --color-bg: #FFFFFF;
+  --color-panel: #FAFBFC;
+  --color-fg: #1C2430;
+  --color-fg-muted: #626E7B;
+  --color-border-line: #E3E8ED;
+  --color-ok: #2F7D53;
+  --color-warn: #9A6A14;
+  --color-bad: #AC4338;
+
+  --cds-radius: 8px;
+  --cds-pad-xs: 4px;  --cds-pad-sm: 8px;  --cds-pad-md: 12px;
+  --cds-pad-lg: 16px; --cds-pad-xl: 24px;
+  --cds-gap-xs: 4px;  --cds-gap-sm: 8px;  --cds-gap-md: 16px;
+  --cds-gap-lg: 28px; --cds-gap-xl: 40px;
+
+  --cds-font-size-caption: 0.8125rem;
+  --cds-font-size-body: 0.9375rem;
+  --cds-font-size-heading: 1.125rem;
+  --cds-font-size-title: 1.5rem;
+  --cds-font-weight-medium: 550;
+
+  --cds-chart-grid: #EDF1F4;
+  --cds-chart-axis: #BFC8D1;
+  --cds-chart-reference: #9AA6B2;
+  --cds-chart-muted: #A8B2BC;
+  --cds-chart-status-critical: #AC4338;
+
+  --cds-surface-popover: #FFFFFF;
+  --cds-border: #D8DEE5;
+  --cds-shadow-popover: 0 4px 16px rgba(20, 30, 45, 0.13);
+  --cds-text-secondary: #626E7B;
+  --cds-dur-slow: 240ms;
+  --cds-ease-out: cubic-bezier(0.2, 0, 0, 1);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --color-bg: #12171D;
+    --color-panel: #181F27;
+    --color-fg: #E6EBF0;
+    --color-fg-muted: #94A1AE;
+    --color-border-line: #263039;
+    --color-ok: #5BBE86;
+    --color-warn: #D6A33F;
+    --color-bad: #E0736A;
+    --cds-chart-grid: #1F2832;
+    --cds-chart-axis: #3B4753;
+    --cds-chart-reference: #6B7885;
+    --cds-chart-muted: #5A6672;
+    --cds-chart-status-critical: #E0736A;
+    --cds-surface-popover: #1C242D;
+    --cds-border: #2E3942;
+    --cds-shadow-popover: 0 4px 16px rgba(0, 0, 0, 0.5);
+    --cds-text-secondary: #94A1AE;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-bg: #12171D;        --color-panel: #181F27;
+  --color-fg: #E6EBF0;        --color-fg-muted: #94A1AE;
+  --color-border-line: #263039;
+  --color-ok: #5BBE86;        --color-warn: #D6A33F;  --color-bad: #E0736A;
+  --cds-chart-grid: #1F2832;  --cds-chart-axis: #3B4753;
+  --cds-chart-reference: #6B7885; --cds-chart-muted: #5A6672;
+  --cds-chart-status-critical: #E0736A;
+  --cds-surface-popover: #1C242D; --cds-border: #2E3942;
+  --cds-shadow-popover: 0 4px 16px rgba(0, 0, 0, 0.5);
+  --cds-text-secondary: #94A1AE;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-anthropic-sans);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+#dash-root {
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 48px;
+}
+.wsi-boot {
+  max-width: 78rem; margin-inline: auto; padding-block: 40px;
+  color: var(--color-fg-muted); font-size: var(--cds-font-size-caption);
+}
+.dash-skeleton {
+  display: inline-block; min-width: 3.5rem; border-radius: 4px;
+  background: var(--color-border-line); color: transparent !important;
+}
+.wsi-foot {
+  max-width: 78rem; margin: var(--cds-gap-lg) auto 0;
+  border-top: 1px solid var(--color-border-line);
+  padding-top: var(--cds-gap-md);
+  color: var(--color-fg-muted); font-size: var(--cds-font-size-caption);
+  line-height: 1.6;
+}
+.wsi-foot a { color: var(--color-fg); }
+
+</style>
+<style>
+.wsi { font-family: var(--font-anthropic-sans); color: var(--color-fg);
+  max-width: 78rem; margin-inline: auto; font-variant-numeric: tabular-nums; }
+.wsi-head { padding-block: var(--cds-pad-md) var(--cds-pad-sm); }
+.wsi-h1 { font-family: var(--font-anthropic-serif); font-weight: 400;
+  font-size: var(--cds-font-size-title); margin: 0; }
+.wsi-take { color: var(--color-fg-muted); font-size: var(--cds-font-size-body);
+  margin: var(--cds-gap-xs) 0 0; max-width: 62ch; line-height: 1.5; }
+.wsi-take b { font-weight: var(--cds-font-weight-medium); color: var(--color-fg); }
+
+.wsi-tabs { display: flex; flex-wrap: wrap; gap: var(--cds-gap-xs);
+  border-bottom: 1px solid var(--color-border-line);
+  margin-bottom: var(--cds-gap-md); padding-bottom: var(--cds-pad-xs); }
+.wsi-tab-btn { font: inherit; font-size: var(--cds-font-size-body);
+  color: var(--color-fg-muted); background: transparent; border: 1px solid transparent;
+  border-radius: var(--cds-radius); padding: var(--cds-pad-xs) var(--cds-pad-sm);
+  cursor: pointer; }
+.wsi-tab-btn:hover { color: var(--color-fg); background: var(--color-panel); }
+.wsi-tab-btn[aria-selected="true"] { color: var(--color-fg);
+  background: var(--color-panel); border-color: var(--color-border-line);
+  font-weight: var(--cds-font-weight-medium); }
+
+.wsi-sec { margin-bottom: var(--cds-gap-lg); }
+.wsi-sec-h { font-size: var(--cds-font-size-heading);
+  font-weight: var(--cds-font-weight-medium); margin: 0 0 var(--cds-gap-xs); }
+.wsi-sec-n { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption);
+  margin: 0 0 var(--cds-gap-sm); max-width: 70ch; line-height: 1.5; }
+
+.wsi-grid { display: grid; gap: var(--cds-gap-md);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); }
+.wsi-grid-2 { display: grid; gap: var(--cds-gap-md);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr)); }
+.wsi-card { background: var(--color-panel); border: 1px solid var(--color-border-line);
+  border-radius: var(--cds-radius); padding: var(--cds-pad-lg); min-width: 0; }
+.wsi-card-h { font-size: var(--cds-font-size-body);
+  font-weight: var(--cds-font-weight-medium); margin: 0 0 2px; }
+.wsi-card-n { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption);
+  margin: 0 0 var(--cds-gap-sm); line-height: 1.45; }
+
+.wsi-tiles { display: grid; gap: var(--cds-gap-sm);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr)); }
+.wsi-tile { background: var(--color-panel); border: 1px solid var(--color-border-line);
+  border-radius: var(--cds-radius); padding: var(--cds-pad-md); min-width: 0; }
+.wsi-tile-l { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption);
+  line-height: 1.3; }
+.wsi-tile-v { font-family: var(--font-anthropic-serif); font-weight: 400;
+  font-size: var(--cds-font-size-title); line-height: 1.2;
+  margin-top: var(--cds-gap-xs); overflow-wrap: anywhere; }
+.wsi-tile-s { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption);
+  margin-top: 2px; }
+.wsi-pos { color: var(--color-ok); } .wsi-neg { color: var(--color-bad); }
+.wsi-warn { color: var(--color-warn); }
+
+.wsi-chart { position: relative; min-width: 0; }
+.wsi-chart svg { display: block; overflow: visible; }
+.wsi-tip { position: absolute; pointer-events: none; z-index: 5;
+  background: var(--cds-surface-popover); border: 1px solid var(--cds-border);
+  border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover);
+  padding: var(--cds-pad-xs) var(--cds-pad-sm); font-size: var(--cds-font-size-caption);
+  line-height: 1.45; white-space: nowrap; }
+.wsi-tip-t { color: var(--cds-text-secondary); margin-bottom: 2px; }
+.wsi-tip-r { display: flex; align-items: center; gap: var(--cds-gap-xs); }
+.wsi-sw { width: .5rem; height: .5rem; border-radius: 2px; flex: none; }
+.wsi-tip-v { margin-left: auto; font-weight: var(--cds-font-weight-medium); }
+
+.wsi-ctl { display: flex; flex-wrap: wrap; gap: var(--cds-gap-xs);
+  align-items: center; margin-bottom: var(--cds-gap-sm); }
+.wsi-chip { font: inherit; font-size: var(--cds-font-size-caption);
+  color: var(--color-fg-muted); background: transparent;
+  border: 1px solid var(--color-border-line); border-radius: var(--cds-radius);
+  padding: 2px var(--cds-pad-sm); cursor: pointer; }
+.wsi-chip:hover { color: var(--color-fg); }
+.wsi-chip[aria-pressed="true"] { color: var(--color-fg); background: var(--color-bg);
+  border-color: var(--cds-chart-axis); font-weight: var(--cds-font-weight-medium); }
+.wsi-in { font: inherit; font-size: var(--cds-font-size-caption);
+  color: var(--color-fg); background: var(--color-bg);
+  border: 1px solid var(--color-border-line); border-radius: var(--cds-radius);
+  padding: 3px var(--cds-pad-sm); min-width: 0; }
+.wsi-lab { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+
+.wsi-tw { overflow: auto; max-height: 26rem; border-radius: var(--cds-radius); }
+.wsi-t { border-collapse: collapse; width: 100%;
+  font-size: var(--cds-font-size-caption); }
+.wsi-t th { position: sticky; top: 0; background: var(--color-panel);
+  text-align: right; font-weight: var(--cds-font-weight-medium);
+  padding: var(--cds-pad-xs) var(--cds-pad-sm); white-space: nowrap;
+  border-bottom: 1px solid var(--color-border-line); z-index: 1; }
+.wsi-t th:first-child, .wsi-t td:first-child { text-align: left; }
+.wsi-t th.wsi-s { cursor: pointer; user-select: none; }
+.wsi-t th.wsi-s:hover { color: var(--color-fg); }
+.wsi-t th[aria-sort="ascending"]::after { content: " \2191"; }
+.wsi-t th[aria-sort="descending"]::after { content: " \2193"; }
+.wsi-t td { text-align: right; padding: var(--cds-pad-xs) var(--cds-pad-sm);
+  border-bottom: 1px solid var(--color-border-line); white-space: nowrap; }
+.wsi-t tbody tr:hover { background: var(--color-bg); }
+.wsi-t tbody tr[data-on="1"] { background: var(--color-bg);
+  outline: 1px solid var(--cds-chart-axis); }
+.wsi-t td.wsi-wrap { white-space: normal; min-width: 14rem; text-align: left; }
+.wsi-click tbody tr { cursor: pointer; }
+.wsi-bar { height: .5rem; border-radius: 2px; display: inline-block;
+  vertical-align: middle; }
+
+.wsi-find { display: grid; gap: var(--cds-gap-md);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 23rem), 1fr)); }
+.wsi-tag { display: inline-block; font-size: var(--cds-font-size-caption);
+  color: var(--color-fg-muted); border: 1px solid var(--color-border-line);
+  border-radius: var(--cds-radius); padding: 1px var(--cds-pad-xs);
+  margin-bottom: var(--cds-gap-xs); }
+.wsi-f-t { font-size: var(--cds-font-size-body);
+  font-weight: var(--cds-font-weight-medium); margin: 0 0 var(--cds-gap-xs);
+  line-height: 1.35; }
+.wsi-f-m { font-family: var(--font-anthropic-serif); font-size: 1.05rem;
+  line-height: 1.3; margin-bottom: var(--cds-gap-sm); }
+.wsi-f-d { font-size: var(--cds-font-size-caption); line-height: 1.55;
+  color: var(--color-fg-muted); margin: 0 0 var(--cds-gap-sm); }
+.wsi-f-a { font-size: var(--cds-font-size-caption); line-height: 1.5;
+  border-top: 1px solid var(--color-border-line); padding-top: var(--cds-gap-xs); }
+.wsi-f-a::before { content: "Do this \2192 "; color: var(--color-fg-muted); }
+
+.wsi-dl { display: grid; grid-template-columns: auto 1fr; gap: 2px var(--cds-gap-sm);
+  font-size: var(--cds-font-size-caption); margin: 0; }
+.wsi-dl dt { color: var(--color-fg-muted); }
+.wsi-dl dd { margin: 0; text-align: right; }
+.wsi-note { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted);
+  line-height: 1.55; }
+.wsi-note b { font-weight: var(--cds-font-weight-medium); color: var(--color-fg); }
+.wsi-fail { display: flex; align-items: center; justify-content: center;
+  gap: var(--cds-gap-xs); font-size: var(--cds-font-size-caption);
+  color: var(--color-fg-muted); }
+.wsi-dot { width: .375rem; height: .375rem; border-radius: 50%;
+  background: var(--color-bad); flex: none; }
+[data-dash-source-state="empty"] { color: transparent; }
+[data-dash-source-state="refreshing"] { opacity: .5;
+  transition: opacity var(--cds-dur-slow); }
+.wsi-steps { display: grid; gap: var(--cds-gap-sm); margin: 0; padding: 0;
+  list-style: none; }
+.wsi-step { display: grid; grid-template-columns: 1.5rem 1fr;
+  gap: var(--cds-gap-sm); font-size: var(--cds-font-size-caption); line-height: 1.5; }
+.wsi-step-n { font-family: var(--font-anthropic-serif); color: var(--color-fg-muted); }
+.wsi-step b { font-weight: var(--cds-font-weight-medium); }
+</style>
+</head>
+<body>
+<div id="dash-root">
+<div class="wsi-boot">Loading the source tables&hellip;</div>
+<div class="wsi">
+  <header class="wsi-head">
+    <h1 class="wsi-h1">Walmart Sales Intelligence</h1>
+    <p class="wsi-take">Across
+      <b data-source="kpis" data-field="value" data-where="metric=weeks">—</b> weeks,
+      <b data-source="kpis" data-field="value" data-where="metric=stores">—</b> stores and
+      <b data-source="kpis" data-field="value" data-where="metric=depts">—</b> departments,
+      this chain turned over
+      <b data-source="kpis" data-field="value" data-where="metric=total_revenue">—</b>.
+      Almost none of that movement is the economy; it is the calendar and the
+      store itself. The largest prize on the page is
+      <b data-source="kpis" data-field="value" data-where="metric=b_opportunity">—</b>
+      of floor-space productivity the weaker stores never reach.</p>
+  </header>
+
+  <nav class="wsi-tabs" role="tablist" aria-label="Sections">
+    <button class="wsi-tab-btn" id="tab-overview" type="button" role="tab" aria-selected="true" aria-controls="overview">Overview</button>
+    <button class="wsi-tab-btn" id="tab-impact" type="button" role="tab" aria-selected="false" aria-controls="impact">Business impact</button>
+    <button class="wsi-tab-btn" id="tab-stores" type="button" role="tab" aria-selected="false" aria-controls="stores">Stores</button>
+    <button class="wsi-tab-btn" id="tab-stats" type="button" role="tab" aria-selected="false" aria-controls="stats">Statistics</button>
+    <button class="wsi-tab-btn" id="tab-forecast" type="button" role="tab" aria-selected="false" aria-controls="forecast">Forecast</button>
+    <button class="wsi-tab-btn" id="tab-method" type="button" role="tab" aria-selected="false" aria-controls="method">Method</button>
+  </nav>
+
+  <!-- ===================================================== OVERVIEW -->
+  <section class="wsi-pane" id="overview" role="tabpanel" aria-labelledby="tab-overview">
+    <div class="wsi-sec">
+      <div class="wsi-tiles">
+        <div class="wsi-tile"><div class="wsi-tile-l">Total revenue</div>
+          <div class="wsi-tile-v" data-source="kpis" data-field="value" data-where="metric=total_revenue">—</div>
+          <div class="wsi-tile-s">143 weeks, all stores</div></div>
+        <div class="wsi-tile"><div class="wsi-tile-l">Average week</div>
+          <div class="wsi-tile-v" data-source="kpis" data-field="value" data-where="metric=avg_weekly_chain">—</div>
+          <div class="wsi-tile-s">chain-wide</div></div>
+        <div class="wsi-tile"><div class="wsi-tile-l">Revenue per sq ft</div>
+          <div class="wsi-tile-v" data-source="kpis" data-field="value" data-where="metric=rev_per_sqft">—</div>
+          <div class="wsi-tile-s">over the whole window</div></div>
+        <div class="wsi-tile"><div class="wsi-tile-l">Biggest week</div>
+          <div class="wsi-tile-v" data-source="kpis" data-field="value" data-where="metric=e8_peak_value">—</div>
+          <div class="wsi-tile-s" id="ov-peak-date">—</div></div>
+        <div class="wsi-tile"><div class="wsi-tile-l">Quietest week</div>
+          <div class="wsi-tile-v" data-source="kpis" data-field="value" data-where="metric=e8_trough_value">—</div>
+          <div class="wsi-tile-s" id="ov-trough-date">—</div></div>
+        <div class="wsi-tile"><div class="wsi-tile-l">Forecast error</div>
+          <div class="wsi-tile-v" data-source="kpis" data-field="value" data-where="metric=e8_mape">—</div>
+          <div class="wsi-tile-s">MAPE, 13 held-out weeks</div></div>
+      </div>
+    </div>
+
+    <div class="wsi-sec">
+      <h2 class="wsi-sec-h" id="sec-trend">Every week of the chain</h2>
+      <p class="wsi-sec-n">Total weekly sales across all 45 stores. The two spikes
+        each year are the pre-Christmas week and Thanksgiving week. Hover for a
+        week; use the controls to lay the smoothing and trend lines over the top.</p>
+      <div class="wsi-card">
+        <div class="wsi-ctl">
+          <button class="wsi-chip" type="button" data-wk="ma4" aria-pressed="false">4-week average</button>
+          <button class="wsi-chip" type="button" data-wk="ma12" aria-pressed="false">12-week average</button>
+          <button class="wsi-chip" type="button" data-wk="trend" aria-pressed="true">52-week trend</button>
+          <button class="wsi-chip" type="button" data-wk="hol" aria-pressed="true">Mark flagged holidays</button>
+        </div>
+        <div class="wsi-chart" id="ch-weekly" data-source="weekly"></div>
+      </div>
+    </div>
+
+    <div class="wsi-sec">
+      <h2 class="wsi-sec-h" id="sec-cal">Two and a half years at a glance</h2>
+      <p class="wsi-sec-n">Every week as one cell, years stacked. Darker is a bigger
+        week. The two dark columns on the right of each row are Thanksgiving and
+        pre-Christmas; cells outlined in red are the weeks the dataset flags as
+        holidays, which do not line up with the dark ones.</p>
+      <div class="wsi-card">
+        <div class="wsi-chart" id="ch-cal" data-source="weekly"></div>
+      </div>
+    </div>
+
+    <div class="wsi-sec">
+      <h2 class="wsi-sec-h" id="sec-findings">What the data says</h2>
+      <p class="wsi-sec-n">Nine findings from the eight experiments, each with the
+        number behind it and the decision it should change.</p>
+      <div class="wsi-find" id="find-grid" data-source="findings"></div>
+    </div>
+  </section>
+
+  <!-- ================================================ BUSINESS IMPACT -->
+  <section class="wsi-pane" id="impact" role="tabpanel" aria-labelledby="tab-impact" hidden>
+    <div class="wsi-sec">
+      <h2 class="wsi-sec-h" id="sec-holiday">The holiday flag points at the wrong weeks</h2>
+      <p class="wsi-sec-n">The dataset marks four holidays as equal. Measured against
+        a same-month baseline, only Thanksgiving earns its flag. The week the
+        chain actually peaks carries no flag at all.</p>
+      <div class="wsi-grid-2">
+        <div class="wsi-card">
+          <h3 class="wsi-card-h">Lift against a same-month baseline</h3>
+          <p class="wsi-card-n">Chain revenue in the flagged week against the average
+            non-flagged week of the same months.</p>
+          <div class="wsi-chart" id="ch-hol" data-source="holidays"></div>
+        </div>
+        <div class="wsi-card">
+          <h3 class="wsi-card-h">The eight biggest weeks on record</h3>
+          <p class="wsi-card-n">Whether each one carries the dataset's holiday flag.</p>
+          <div class="wsi-tw">
+            <table class="wsi-t" id="t-top" data-source="top_weeks" data-row-key="date">
+              <thead><tr>
+                <th data-field="date">Week ending</th>
+                <th data-field="week">Wk</th>
+                <th data-field="revenue">Chain revenue</th>
+                <th data-field="vs_median_pct">vs median</th>
+                <th data-field="flagged">Flagged</th>
+              </tr></thead><tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="wsi-tiles" style="margin-top: var(--cds-gap-md)">
+        <div class="wsi-tile"><div class="wsi-tile-l">Average flagged week</div>
+          <div class="wsi-tile-v" data-source="kpis" data-field="value" data-where="metric=b_hol_week_rev">—</div></div>
+        <div class="wsi-tile"><div class="wsi-tile-l">Average normal week</div>
+          <div class="wsi-tile-v" data-source="kpis" data-field="value" data-where="metric=b_normal_week_rev">—</div></div>
+        <div class="wsi-tile"><div class="wsi-tile-l">Average December week</div>
+          <div class="wsi-tile-v" data-source="kpis" data-field="value" data-where="metric=b_december_week">—</div>
+          <div class="wsi-tile-s"><span data-source="kpis" data-field="value" data-where="metric=b_december_vs_year">—</span> vs the average week</div></div>
+        <div class="wsi-tile"><div class="wsi-tile-l">Top-5 weeks flagged normal</div>
+          <div class="wsi-tile-v" data-source="kpis" data-field="value" data-where="metric=b_unflagged_top5">—</div>
+          <div class="wsi-tile-s">of five</div></div>
+      </div>
+    </div>
+
+    <div class="wsi-sec">
+      <h2 class="wsi-sec-h" id="sec-hollift">Which departments actually ride the holiday</h2>
+      <p class="wsi-sec-n">Holiday lift for the nine strongest and nine weakest of the
+        larger departments. Some departments more than double; others fall, because
+        shoppers switch spend towards gifting.</p>
+      <div class="wsi-card">
+        <div class="wsi-chart" id="ch-hollift" data-source="depts"></div>
+      </div>
+    </div>
+
+    <div class="wsi-sec">
+      <h2 class="wsi-sec-h" id="sec-format">Small stores work the hardest floor space</h2>
+      <p class="wsi-sec-n">Type A takes most of the revenue because it has most of the
+        square footage. Per square foot the ranking reverses.</p>
+      <div class="wsi-grid-2">
+        <div class="wsi-card">
+          <h3 class="wsi-card-h">Revenue per square foot by format</h3>
+          <p class="wsi-card-n">Total revenue over total floor space, by store type.</p>
+          <div class="wsi-chart" id="ch-fmt" data-source="segments"></div>
+        </div>
+        <div class="wsi-card">
+          <h3 class="wsi-card-h">Format economics</h3>
+          <p class="wsi-card-n">Every store in the chain is one of three formats.</p>
+          <div class="wsi-tw">
+            <table class="wsi-t" id="t-fmt" data-source="segments" data-row-key="group">
+              <thead><tr>
+                <th data-field="group">Format</th>
+                <th data-field="stores">Stores</th>
+                <th data-field="avg_size">Avg size</th>
+                <th data-field="revenue">Revenue</th>
+                <th data-field="rev_share_pct">Share</th>
+                <th data-field="rev_per_sqft">$/sq ft</th>
+              </tr></thead><tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="wsi-sec">
+      <h2 class="wsi-sec-h" id="sec-dept">A few departments carry the chain</h2>
+      <p class="wsi-sec-n">Departments ranked by revenue, with the cumulative share
+        running across. Search or sort the table to find any department.</p>
+      <div class="wsi-card">
+        <div class="wsi-chart" id="ch-pareto" data-source="depts"></div>
+      </div>
+      <div class="wsi-card" style="margin-top: var(--cds-gap-md)">
+        <h3 class="wsi-card-h">Every department sized by revenue</h3>
+        <p class="wsi-card-n">Area is revenue, shade is revenue. The 34 largest
+          departments are drawn individually; the rest are pooled into one tile.</p>
+        <div class="wsi-chart" id="ch-tree" data-source="depts"></div>
+      </div>
+      <div class="wsi-grid-2" style="margin-top: var(--cds-gap-md)">
+        <div class="wsi-card">
+          <h3 class="wsi-card-h">Growing and shrinking departments</h3>
+          <p class="wsi-card-n">2011 against 2010, larger departments only.</p>
+          <div class="wsi-chart" id="ch-growth" data-source="depts"></div>
+        </div>
+        <div class="wsi-card">
+          <h3 class="wsi-card-h">How concentrated is the revenue</h3>
+          <p class="wsi-card-n">Share of revenue held by the biggest stores and the
+            biggest departments. The dashed diagonal is perfectly even spread; the
+            further a curve bows above it, the more concentrated.</p>
+          <div class="wsi-chart" id="ch-lorenz" data-source="stores depts"></div>
+        </div>
+      </div>
+      <div class="wsi-card" style="margin-top: var(--cds-gap-md)">
+        <div class="wsi-ctl">
+          <label class="wsi-lab" for="dept-q">Search</label>
+          <input class="wsi-in" id="dept-q" type="search" placeholder="department number" aria-label="Search departments">
+          <span class="wsi-lab" id="dept-count">—</span>
+        </div>
+        <div class="wsi-tw">
+          <table class="wsi-t" id="t-dept" data-source="depts" data-row-key="dept">
+            <thead><tr>
+              <th class="wsi-s" data-field="dept" data-k="dept">Dept</th>
+              <th class="wsi-s" data-field="revenue" data-k="revenue" aria-sort="descending">Revenue</th>
+              <th class="wsi-s" data-field="share_pct" data-k="share_pct">Share</th>
+              <th class="wsi-s" data-field="cum_pct" data-k="cum_pct">Cumulative</th>
+              <th class="wsi-s" data-field="avg" data-k="avg">Avg week</th>
+              <th class="wsi-s" data-field="cv" data-k="cv">Volatility</th>
+              <th class="wsi-s" data-field="stores" data-k="stores">Stores</th>
+              <th class="wsi-s" data-field="hol_lift" data-k="hol_lift">Holiday lift</th>
+            </tr></thead><tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="wsi-sec">
+      <h2 class="wsi-sec-h" id="sec-monthly">Month by month, start to finish</h2>
+      <p class="wsi-sec-n">Total revenue in every calendar month of the window. The
+        two Decembers stand clear of everything else; the highlighted bars are the
+        months within a tenth of the peak.</p>
+      <div class="wsi-card">
+        <div class="wsi-chart" id="ch-monthly" data-source="seasonality"></div>
+      </div>
+    </div>
+
+    <div class="wsi-sec">
+      <h2 class="wsi-sec-h" id="sec-heat">Where each store makes its money</h2>
+      <p class="wsi-sec-n">Every store against the twenty largest departments, which
+        together are about two thirds of all revenue. Shade is that department's share
+        of that store's own revenue, so a small store and a large one can be compared
+        directly. Horizontal streaks are stores with an unusual mix.</p>
+      <div class="wsi-card">
+        <div class="wsi-chart" id="ch-heat" data-source="store_dept"></div>
+      </div>
+    </div>
+
+    <div class="wsi-sec">
+      <h2 class="wsi-sec-h" id="sec-markdown">Markdown depth, with the confound removed</h2>
+      <p class="wsi-sec-n">Markdowns are recorded only from November 2011, and in that
+        window every record carries one, so there is no zero-markdown control group.
+        The band chart compares records; the number beside it compares each store-dept
+        with itself.</p>
+      <div class="wsi-grid-2">
+        <div class="wsi-card">
+          <div class="wsi-ctl">
+            <button class="wsi-chip" type="button" data-md="band" aria-pressed="true">By depth</button>
+            <button class="wsi-chip" type="button" data-md="channel" aria-pressed="false">By channel</button>
+          </div>
+          <div class="wsi-chart" id="ch-md" data-source="markdown"></div>
+        </div>
+        <div class="wsi-card">
+          <h3 class="wsi-card-h">What a markdown dollar actually moves</h3>
+          <p class="wsi-card-n">Each store-dept's own average is removed first, so
+            large departments are not being compared with small ones.</p>
+          <dl class="wsi-dl">
+            <dt>Recorded markdown spend</dt>
+            <dd data-source="kpis" data-field="value" data-where="metric=b_md_spend">—</dd>
+            <dt>Sales per markdown dollar</dt>
+            <dd data-source="kpis" data-field="value" data-where="metric=b_md_slope">—</dd>
+            <dt>Holding the holiday flag constant</dt>
+            <dd data-source="kpis" data-field="value" data-where="metric=b_md_slope_hol">—</dd>
+            <dt>Variance it explains</dt>
+            <dd data-source="kpis" data-field="value" data-where="metric=b_md_r2">—</dd>
+            <dt>Attributable movement</dt>
+            <dd data-source="kpis" data-field="value" data-where="metric=b_md_attributable">—</dd>
+            <dt>Records in the window</dt>
+            <dd data-source="kpis" data-field="value" data-where="metric=b_md_records">—</dd>
+          </dl>
+          <p class="wsi-note" style="margin-top: var(--cds-gap-sm)">The band chart's
+            spread is almost entirely store size. Read it as a description of where
+            markdown money goes, never as its return.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="wsi-sec">
+      <h2 class="wsi-sec-h" id="sec-econ">The economy barely registers</h2>
+      <p class="wsi-sec-n">Average store-week revenue inside each band of an economic
+        driver. Pick a driver to see how little the till moves across its whole range.</p>
+      <div class="wsi-card">
+        <div class="wsi-ctl" id="econ-pick"></div>
+        <div class="wsi-chart" id="ch-econ" data-source="econ_bands"></div>
+      </div>
+    </div>
+
+    <div class="wsi-sec">
+      <h2 class="wsi-sec-h" id="sec-opp">Where the headroom is</h2>
+      <p class="wsi-sec-n">Every store below the top-quartile benchmark for revenue
+        per square foot, and what closing that gap would be worth. This is a ceiling,
+        not a plan: catchment and location cap what any single store can reach.</p>
+      <div class="wsi-tiles">
+        <div class="wsi-tile"><div class="wsi-tile-l">Benchmark</div>
+          <div class="wsi-tile-v" data-source="kpis" data-field="value" data-where="metric=b_topq_rps">—</div>
+          <div class="wsi-tile-s">top-quartile $/sq ft</div></div>
+        <div class="wsi-tile"><div class="wsi-tile-l">Stores below it</div>
+          <div class="wsi-tile-v" data-source="kpis" data-field="value" data-where="metric=b_underperformers">—</div>
+          <div class="wsi-tile-s">of 45</div></div>
+        <div class="wsi-tile"><div class="wsi-tile-l">Headroom</div>
+          <div class="wsi-tile-v" data-source="kpis" data-field="value" data-where="metric=b_opportunity">—</div>
+          <div class="wsi-tile-s"><span data-source="kpis" data-field="value" data-where="metric=b_opportunity_pct">—</span> of revenue</div></div>
+        <div class="wsi-tile"><div class="wsi-tile-l">Top 10 stores</div>
+          <div class="wsi-tile-v" data-source="kpis" data-field="value" data-where="metric=b_top10_store_share">—</div>
+          <div class="wsi-tile-s">of all revenue</div></div>
+        <div class="wsi-tile"><div class="wsi-tile-l">Largest over smallest</div>
+          <div class="wsi-tile-v" data-source="kpis" data-field="value" data-where="metric=b_spread_ratio">—</div>
+          <div class="wsi-tile-s">by total revenue</div></div>
+        <div class="wsi-tile"><div class="wsi-tile-l">Net returns</div>
+          <div class="wsi-tile-v" data-source="kpis" data-field="value" data-where="metric=b_returns_pct">—</div>
+          <div class="wsi-tile-s">of revenue, across
+            <span data-source="kpis" data-field="value" data-where="metric=b_returns_records">—</span> records</div></div>
+      </div>
+      <div class="wsi-card" style="margin-top: var(--cds-gap-md)">
+        <h3 class="wsi-card-h">The twelve largest gaps</h3>
+        <p class="wsi-card-n">Stores ranked by the revenue they would add at the
+          benchmark. Bars share one scale.</p>
+        <div class="wsi-chart" id="ch-gap" data-source="stores"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================================================= STORES -->
+  <section class="wsi-pane" id="stores" role="tabpanel" aria-labelledby="tab-stores" hidden>
+    <div class="wsi-sec">
+      <h2 class="wsi-sec-h" id="sec-sparks">All 45 stores, same scale</h2>
+      <p class="wsi-sec-n">One panel per store, every panel drawn on the same vertical
+        scale so the sizes are honest. The number and letter is the store and its
+        format. Click any panel to select that store across this page; the format
+        buttons below fade the rest.</p>
+      <div class="wsi-card">
+        <div class="wsi-chart" id="ch-sparks" data-source="store_week"></div>
+      </div>
+    </div>
+
+    <div class="wsi-sec">
+      <h2 class="wsi-sec-h" id="sec-scorecard">Store scorecard</h2>
+      <p class="wsi-sec-n">All 45 stores. Sort any column, search for a store, or
+        filter to one format. Clicking a row highlights that store in the cluster
+        map below and sets it as a filter across this page.</p>
+      <div class="wsi-card">
+        <div class="wsi-ctl">
+          <label class="wsi-lab" for="st-q">Search</label>
+          <input class="wsi-in" id="st-q" type="search" placeholder="store number" aria-label="Search stores">
+          <span class="wsi-lab">Format</span>
+          <button class="wsi-chip" type="button" data-fmt="all" aria-pressed="true">All</button>
+          <button class="wsi-chip" type="button" data-fmt="A" aria-pressed="false">A</button>
+          <button class="wsi-chip" type="button" data-fmt="B" aria-pressed="false">B</button>
+          <button class="wsi-chip" type="button" data-fmt="C" aria-pressed="false">C</button>
+          <button class="wsi-chip" id="st-reset" type="button">Reset</button>
+          <span class="wsi-lab" id="st-count">—</span>
+        </div>
+        <div class="wsi-tw">
+          <table class="wsi-t wsi-click" id="t-store" data-source="stores" data-row-key="store">
+            <thead><tr>
+              <th class="wsi-s" data-field="store" data-k="store">Store</th>
+              <th class="wsi-s" data-field="type" data-k="type">Format</th>
+              <th class="wsi-s" data-field="cluster" data-k="cluster">Cluster</th>
+              <th class="wsi-s" data-field="size" data-k="size">Size</th>
+              <th class="wsi-s" data-field="total_rev" data-k="total_rev" aria-sort="descending">Revenue</th>
+              <th class="wsi-s" data-field="avg_weekly" data-k="avg_weekly">Avg week</th>
+              <th class="wsi-s" data-field="rev_per_sqft" data-k="rev_per_sqft">$/sq ft</th>
+              <th class="wsi-s" data-field="cv" data-k="cv">Volatility</th>
+              <th class="wsi-s" data-field="hol_lift" data-k="hol_lift">Holiday lift</th>
+              <th class="wsi-s" data-field="growth_pct" data-k="growth_pct">Growth</th>
+              <th class="wsi-s" data-field="unemployment" data-k="unemployment">Unemp.</th>
+              <th class="wsi-s" data-field="gap_to_benchmark" data-k="gap_to_benchmark">Gap to benchmark</th>
+            </tr></thead><tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="wsi-sec">
+      <h2 class="wsi-sec-h" id="sec-cluster">Four store archetypes</h2>
+      <p class="wsi-sec-n">K-means on six behavioural features — weekly revenue, floor
+        space, volatility, local CPI, local unemployment and holiday lift — projected
+        onto its two principal components. Hover a point for the store; the selected
+        store from the table above is ringed.</p>
+      <div class="wsi-grid-2">
+        <div class="wsi-card">
+          <h3 class="wsi-card-h">Cluster map</h3>
+          <p class="wsi-card-n">Each point is one store. Axes are principal
+            components, so distance means similarity, not revenue.</p>
+          <div class="wsi-chart" id="ch-pca" data-source="stores"></div>
+        </div>
+        <div class="wsi-card">
+          <h3 class="wsi-card-h">Choosing k</h3>
+          <p class="wsi-card-n">Inertia falls smoothly, so the elbow is weak;
+            silhouette picks the shape of the split.</p>
+          <div class="wsi-chart" id="ch-elbow" data-source="curves"></div>
+        </div>
+      </div>
+      <div class="wsi-card" style="margin-top: var(--cds-gap-md)">
+        <h3 class="wsi-card-h">The four archetypes across every feature</h3>
+        <p class="wsi-card-n">Each line is one archetype traced across the six
+          features the clustering used. Where lines cross, the ranking reverses.</p>
+        <div class="wsi-chart" id="ch-par" data-source="segments"></div>
+      </div>
+      <div class="wsi-card" style="margin-top: var(--cds-gap-md)">
+        <h3 class="wsi-card-h">Cluster profiles</h3>
+        <p class="wsi-card-n">Averages within each archetype.</p>
+        <div class="wsi-tw">
+          <table class="wsi-t" id="t-clu" data-source="segments" data-row-key="group">
+            <thead><tr>
+              <th data-field="group">Archetype</th>
+              <th data-field="stores">Stores</th>
+              <th data-field="avg_weekly_per_store">Avg week</th>
+              <th data-field="avg_size">Avg size</th>
+              <th data-field="rev_per_sqft">$/sq ft</th>
+              <th data-field="cv">Volatility</th>
+              <th data-field="hol_lift">Holiday lift</th>
+              <th data-field="unemployment">Unemp.</th>
+              <th data-field="rev_share_pct">Revenue share</th>
+            </tr></thead><tbody></tbody>
+          </table>
+        </div>
+        <p class="wsi-note" style="margin-top: var(--cds-gap-sm)">Silhouette at the
+          chosen k is
+          <b data-source="kpis" data-field="value" data-where="metric=e4_silhouette">—</b>,
+          which is modest: the archetypes are real but they overlap. The two
+          components shown hold
+          <b data-source="kpis" data-field="value" data-where="metric=e4_pca1">—</b> and
+          <b data-source="kpis" data-field="value" data-where="metric=e4_pca2">—</b>
+          of the variance between stores.</p>
+      </div>
+    </div>
+
+    <div class="wsi-sec">
+      <h2 class="wsi-sec-h" id="sec-scatter">Size against productivity</h2>
+      <p class="wsi-sec-n">Bubble area is total revenue, colour is format. If bigger
+        stores were more productive the cloud would slope upward; it slopes down. The
+        second chart asks whether the busiest stores are also the steadiest.</p>
+      <div class="wsi-grid-2">
+        <div class="wsi-card">
+          <h3 class="wsi-card-h">Floor space against revenue per square foot</h3>
+          <p class="wsi-card-n">Dashed line is the top-quartile benchmark. Click a
+            bubble to select that store.</p>
+          <div class="wsi-chart" id="ch-bubble" data-source="stores kpis"></div>
+        </div>
+        <div class="wsi-card">
+          <h3 class="wsi-card-h">Revenue against volatility</h3>
+          <p class="wsi-card-n">Coefficient of variation on each store's own weekly
+            revenue, so bigger stores are not penalised for bigger swings.</p>
+          <div class="wsi-chart" id="ch-vol" data-source="stores"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="wsi-sec">
+      <h2 class="wsi-sec-h" id="sec-box">Spread of store-week revenue by format</h2>
+      <p class="wsi-sec-n">Box and whiskers on store-week totals: the line is the
+        median, the box the interquartile range, the whiskers the Tukey fences.</p>
+      <div class="wsi-card">
+        <div class="wsi-chart" id="ch-box" data-source="segments"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =================================================== STATISTICS -->
+  <section class="wsi-pane" id="stats" role="tabpanel" aria-labelledby="tab-stats" hidden>
+    <div class="wsi-sec">
+      <h2 class="wsi-sec-h" id="sec-desc">Experiment 1 — Descriptive statistics</h2>
+      <p class="wsi-sec-n">Quartiles and Tukey fences on every store-dept-week record.
+        The outliers are not errors: they are the weeks the business lives on.</p>
+      <div class="wsi-tiles">
+        <div class="wsi-tile"><div class="wsi-tile-l">Q1</div>
+          <div class="wsi-tile-v" data-source="kpis" data-field="value" data-where="metric=e1_q1">—</div></div>
+        <div class="wsi-tile"><div class="wsi-tile-l">Median</div>
+          <div class="wsi-tile-v" data-source="kpis" data-field="value" data-where="metric=e1_q2">—</div></div>
+        <div class="wsi-tile"><div class="wsi-tile-l">Q3</div>
+          <div class="wsi-tile-v" data-source="kpis" data-field="value" data-where="metric=e1_q3">—</div></div>
+        <div class="wsi-tile"><div class="wsi-tile-l">IQR</div>
+          <div class="wsi-tile-v" data-source="kpis" data-field="value" data-where="metric=e1_iqr">—</div></div>
+        <div class="wsi-tile"><div class="wsi-tile-l">Upper fence</div>
+          <div class="wsi-tile-v" data-source="kpis" data-field="value" data-where="metric=e1_fence_hi">—</div></div>
+        <div class="wsi-tile"><div class="wsi-tile-l">Outliers</div>
+          <div class="wsi-tile-v" data-source="kpis" data-field="value" data-where="metric=e1_outlier_pct">—</div>
+          <div class="wsi-tile-s">of records, holding
+            <span data-source="kpis" data-field="value" data-where="metric=e1_outlier_revenue_pct">—</span> of revenue</div></div>
+      </div>
+      <div class="wsi-card" style="margin-top: var(--cds-gap-md)">
+        <h3 class="wsi-card-h">Distribution of weekly sales per store-dept</h3>
+        <p class="wsi-card-n">Counts per bin, clipped at the 99.5th percentile so the
+          bars stay readable. The dashed line is the upper Tukey fence.</p>
+        <div class="wsi-chart" id="ch-hist" data-source="curves"></div>
+      </div>
+    </div>
+
+    <div class="wsi-sec">
+      <h2 class="wsi-sec-h" id="sec-reg">Experiment 2 — Linear regression</h2>
+      <p class="wsi-sec-n">Three specifications on the same target. Economic
+        indicators alone explain essentially nothing; floor space explains most of
+        what can be explained.</p>
+      <div class="wsi-tiles">
+        <div class="wsi-tile"><div class="wsi-tile-l">Economic drivers only</div>
+          <div class="wsi-tile-v" data-source="kpis" data-field="value" data-where="metric=e2_economic_r2">—</div>
+          <div class="wsi-tile-s">R², store-dept-week</div></div>
+        <div class="wsi-tile"><div class="wsi-tile-l">Adding size and holiday</div>
+          <div class="wsi-tile-v" data-source="kpis" data-field="value" data-where="metric=e2_full_r2">—</div>
+          <div class="wsi-tile-s">R², store-dept-week</div></div>
+        <div class="wsi-tile"><div class="wsi-tile-l">Aggregated to store-week</div>
+          <div class="wsi-tile-v" data-source="kpis" data-field="value" data-where="metric=e2_store_week_r2">—</div>
+          <div class="wsi-tile-s">R², same drivers</div></div>
+        <div class="wsi-tile"><div class="wsi-tile-l">Store-week RMSE</div>
+          <div class="wsi-tile-v" data-source="kpis" data-field="value" data-where="metric=e2_store_week_rmse">—</div></div>
+      </div>
+      <div class="wsi-grid-2" style="margin-top: var(--cds-gap-md)">
+        <div class="wsi-card">
+          <h3 class="wsi-card-h">Predicted against actual</h3>
+          <p class="wsi-card-n">Store-week model, 1,200 sampled weeks. The diagonal is
+            a perfect prediction.</p>
+          <div class="wsi-chart" id="ch-fit" data-source="curves"></div>
+        </div>
+        <div class="wsi-card">
+          <h3 class="wsi-card-h">Coefficients</h3>
+          <p class="wsi-card-n">Store-week model. Each coefficient is dollars of
+            weekly revenue per one unit of the driver.</p>
+          <div class="wsi-tw">
+            <table class="wsi-t" id="t-coef" data-source="model" data-row-key="model,feature">
+              <thead><tr>
+                <th data-field="feature">Driver</th>
+                <th data-field="coef">Per unit</th>
+              </tr></thead><tbody></tbody>
+            </table>
+          </div>
+          <p class="wsi-note" style="margin-top: var(--cds-gap-sm)">Size dominates:
+            a store's floor space sets its weekly revenue far more than any
+            condition in the week itself.</p>
+        </div>
+      </div>
+      <div class="wsi-card" style="margin-top: var(--cds-gap-md)">
+        <h3 class="wsi-card-h">Where the model is wrong</h3>
+        <p class="wsi-card-n">Residuals of the store-week model. Centred on zero and
+          roughly symmetric, which is what a well-specified linear model should give,
+          but wide: the typical miss is in the hundreds of thousands.</p>
+        <div class="wsi-chart" id="ch-resid" data-source="curves"></div>
+      </div>
+      <div class="wsi-card" style="margin-top: var(--cds-gap-md)">
+        <h3 class="wsi-card-h">Impact of a one-standard-deviation move</h3>
+        <p class="wsi-card-n">What a typical swing in each economic driver is worth to
+          a store's weekly revenue, from the store-week model.</p>
+        <div class="wsi-chart" id="ch-elas" data-source="model"></div>
+      </div>
+    </div>
+
+    <div class="wsi-sec">
+      <h2 class="wsi-sec-h" id="sec-samp">Experiment 3 — Sampling</h2>
+      <p class="wsi-sec-n">How close a sample gets to the population, and how the
+        sampling distribution of the mean tightens as theory predicts.</p>
+      <div class="wsi-grid-2">
+        <div class="wsi-card">
+          <h3 class="wsi-card-h">Sample against population</h3>
+          <p class="wsi-card-n">Population mean is
+            <b data-source="kpis" data-field="value" data-where="metric=e3_pop_mean">—</b>
+            across
+            <b data-source="kpis" data-field="value" data-where="metric=e3_pop_n">—</b>
+            records.</p>
+          <div class="wsi-tw">
+            <table class="wsi-t" id="t-samp" data-source="sampling" data-row-key="label">
+              <thead><tr>
+                <th data-field="label">Sample</th>
+                <th data-field="method">Method</th>
+                <th data-field="mean">Mean</th>
+                <th data-field="se">Std error</th>
+                <th data-field="err_pct">Error</th>
+              </tr></thead><tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="wsi-card">
+          <h3 class="wsi-card-h">The central limit theorem, demonstrated</h3>
+          <p class="wsi-card-n">1,000 repeated samples of 500 records each. The
+            distribution of their means is close to normal even though the underlying
+            sales are strongly skewed.</p>
+          <div class="wsi-chart" id="ch-clt" data-source="curves"></div>
+          <dl class="wsi-dl" style="margin-top: var(--cds-gap-sm)">
+            <dt>Observed spread of sample means</dt>
+            <dd data-source="kpis" data-field="value" data-where="metric=e3_clt_std">—</dd>
+            <dt>Spread predicted by theory</dt>
+            <dd data-source="kpis" data-field="value" data-where="metric=e3_clt_se">—</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+
+    <div class="wsi-sec">
+      <h2 class="wsi-sec-h" id="sec-conv">How fast a sample converges</h2>
+      <p class="wsi-sec-n">Error against the true population mean as the sample grows,
+        on a log scale. A few thousand records already put the estimate within a
+        percent or so, which is why sampling this dataset is safe.</p>
+      <div class="wsi-card">
+        <div class="wsi-chart" id="ch-conv" data-source="sampling"></div>
+      </div>
+    </div>
+
+    <div class="wsi-sec">
+      <h2 class="wsi-sec-h" id="sec-prob">Experiment 5 — Weekly sales as a random variable</h2>
+      <p class="wsi-sec-n">The density and cumulative distribution of weekly sales,
+        and the probability of clearing a given threshold.</p>
+      <div class="wsi-grid-2">
+        <div class="wsi-card">
+          <div class="wsi-ctl">
+            <button class="wsi-chip" type="button" data-pd="pdf" aria-pressed="true">Density</button>
+            <button class="wsi-chip" type="button" data-pd="cdf" aria-pressed="false">Cumulative</button>
+          </div>
+          <div class="wsi-chart" id="ch-pdf" data-source="curves"></div>
+        </div>
+        <div class="wsi-card">
+          <h3 class="wsi-card-h">Probability of clearing a threshold</h3>
+          <p class="wsi-card-n">And the share of all revenue sitting above it.</p>
+          <div class="wsi-tw">
+            <table class="wsi-t" id="t-exc" data-source="curves" data-row-key="id">
+              <thead><tr>
+                <th data-field="x">Threshold</th>
+                <th data-field="y">P(sales above)</th>
+                <th data-field="y2">Share of revenue</th>
+              </tr></thead><tbody></tbody>
+            </table>
+          </div>
+          <dl class="wsi-dl" style="margin-top: var(--cds-gap-sm)">
+            <dt>Expected value</dt>
+            <dd data-source="kpis" data-field="value" data-where="metric=e5_mean">—</dd>
+            <dt>Standard deviation</dt>
+            <dd data-source="kpis" data-field="value" data-where="metric=e5_std">—</dd>
+            <dt>Coefficient of variation</dt>
+            <dd data-source="kpis" data-field="value" data-where="metric=e5_cv">—</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+
+    <div class="wsi-sec">
+      <h2 class="wsi-sec-h" id="sec-pctl">The percentile ladder</h2>
+      <p class="wsi-sec-n">Weekly sales at each percentile. The jump from the 95th to
+        the 99th is larger than the whole distance from the 1st to the 75th, which is
+        the heavy tail stated plainly.</p>
+      <div class="wsi-card">
+        <div class="wsi-chart" id="ch-pctl" data-source="kpis"></div>
+      </div>
+    </div>
+
+    <div class="wsi-sec">
+      <h2 class="wsi-sec-h" id="sec-dist">Experiment 6 — Which distribution fits</h2>
+      <p class="wsi-sec-n">Weekly sales are strongly right-skewed with heavy tails, so
+        the normal distribution is rejected outright. Log-normal is much closer.</p>
+      <div class="wsi-tiles">
+        <div class="wsi-tile"><div class="wsi-tile-l">Skewness</div>
+          <div class="wsi-tile-v" data-source="kpis" data-field="value" data-where="metric=e6_skew">—</div></div>
+        <div class="wsi-tile"><div class="wsi-tile-l">Excess kurtosis</div>
+          <div class="wsi-tile-v" data-source="kpis" data-field="value" data-where="metric=e6_kurtosis">—</div></div>
+        <div class="wsi-tile"><div class="wsi-tile-l">Skew after log</div>
+          <div class="wsi-tile-v" data-source="kpis" data-field="value" data-where="metric=e6_log_skew">—</div>
+          <div class="wsi-tile-s">overshoots to mild left skew</div></div>
+        <div class="wsi-tile"><div class="wsi-tile-l">Chain weekly total</div>
+          <div class="wsi-tile-v" data-source="kpis" data-field="value" data-where="metric=e6_shapiro_p">—</div>
+          <div class="wsi-tile-s">Shapiro-Wilk p: aggregation restores normality</div></div>
+      </div>
+      <div class="wsi-grid-2" style="margin-top: var(--cds-gap-md)">
+        <div class="wsi-card">
+          <h3 class="wsi-card-h">Empirical density against two fits</h3>
+          <p class="wsi-card-n">The normal fit puts mass below zero and misses the
+            peak; log-normal tracks the real shape.</p>
+          <div class="wsi-chart" id="ch-ov" data-source="curves"></div>
+        </div>
+        <div class="wsi-card">
+          <h3 class="wsi-card-h">Normal Q-Q plot</h3>
+          <p class="wsi-card-n">Points leave the diagonal at both ends, which is the
+            heavy tail. Perfect normality would follow the dashed line.</p>
+          <div class="wsi-chart" id="ch-qq" data-source="curves"></div>
+        </div>
+      </div>
+      <div class="wsi-card" style="margin-top: var(--cds-gap-md)">
+        <h3 class="wsi-card-h">Goodness of fit</h3>
+        <p class="wsi-card-n">Kolmogorov-Smirnov statistic — smaller is a better fit.</p>
+        <div class="wsi-tw">
+          <table class="wsi-t" id="t-fits" data-source="dist_fits" data-row-key="name">
+            <thead><tr>
+              <th data-field="name">Distribution</th>
+              <th data-field="params">Fitted parameters</th>
+              <th data-field="ks_stat">KS statistic</th>
+              <th data-field="ks_p">p-value</th>
+            </tr></thead><tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="wsi-sec">
+      <h2 class="wsi-sec-h" id="sec-inf">Experiment 7 — Statistical inference</h2>
+      <p class="wsi-sec-n">With 421,570 records almost any difference reaches
+        significance, so effect size matters more than the p-value. The holiday
+        difference is real and small; the format difference is real and large.</p>
+      <div class="wsi-grid-2">
+        <div class="wsi-card">
+          <h3 class="wsi-card-h">Holiday against normal weeks</h3>
+          <p class="wsi-card-n">Welch's t-test on store-dept-week sales.</p>
+          <dl class="wsi-dl">
+            <dt>Mean, flagged holiday weeks</dt>
+            <dd data-source="kpis" data-field="value" data-where="metric=e7_hol_mean">—</dd>
+            <dt>Mean, normal weeks</dt>
+            <dd data-source="kpis" data-field="value" data-where="metric=e7_non_mean">—</dd>
+            <dt>Difference</dt>
+            <dd data-source="kpis" data-field="value" data-where="metric=e7_hol_diff">—</dd>
+            <dt>Lift</dt>
+            <dd data-source="kpis" data-field="value" data-where="metric=e7_hol_lift">—</dd>
+            <dt>t statistic</dt>
+            <dd data-source="kpis" data-field="value" data-where="metric=e7_hol_t">—</dd>
+            <dt>p-value</dt>
+            <dd data-source="kpis" data-field="value" data-where="metric=e7_hol_p">—</dd>
+            <dt>Cohen's d</dt>
+            <dd data-source="kpis" data-field="value" data-where="metric=e7_hol_d">—</dd>
+            <dt>Mann-Whitney p</dt>
+            <dd data-source="kpis" data-field="value" data-where="metric=e7_hol_mw_p">—</dd>
+          </dl>
+          <p class="wsi-note" style="margin-top: var(--cds-gap-sm)">Significant, but
+            Cohen's d near 0.05 is a very small effect. The chain-level holiday story
+            lives in two specific weeks, not in the flag.</p>
+        </div>
+        <div class="wsi-card">
+          <h3 class="wsi-card-h">Across the three formats, and the mean itself</h3>
+          <p class="wsi-card-n">One-way ANOVA, its non-parametric check, and the
+            confidence interval for mean weekly sales.</p>
+          <dl class="wsi-dl">
+            <dt>ANOVA F</dt>
+            <dd data-source="kpis" data-field="value" data-where="metric=e7_anova_f">—</dd>
+            <dt>ANOVA p</dt>
+            <dd data-source="kpis" data-field="value" data-where="metric=e7_anova_p">—</dd>
+            <dt>Kruskal-Wallis p</dt>
+            <dd data-source="kpis" data-field="value" data-where="metric=e7_kruskal_p">—</dd>
+            <dt>Chi-square, markdown against holiday</dt>
+            <dd data-source="kpis" data-field="value" data-where="metric=e7_chi2">—</dd>
+            <dt>Estimated mean</dt>
+            <dd data-source="kpis" data-field="value" data-where="metric=e7_mean">—</dd>
+            <dt>Standard error</dt>
+            <dd data-source="kpis" data-field="value" data-where="metric=e7_se">—</dd>
+            <dt>95% interval, lower</dt>
+            <dd data-source="kpis" data-field="value" data-where="metric=e7_ci95_lo">—</dd>
+            <dt>95% interval, upper</dt>
+            <dd data-source="kpis" data-field="value" data-where="metric=e7_ci95_hi">—</dd>
+          </dl>
+        </div>
+      </div>
+      <div class="wsi-card" style="margin-top: var(--cds-gap-md)">
+        <h3 class="wsi-card-h">Correlation matrix</h3>
+        <p class="wsi-card-n">Blue is positive, red negative, stronger colour is a
+          stronger relationship. Switch between individual records and store-week
+          totals — aggregating reveals the size effect that record-level noise hides.</p>
+        <div class="wsi-ctl">
+          <button class="wsi-chip" type="button" data-cl="record" aria-pressed="false">Store-dept-week records</button>
+          <button class="wsi-chip" type="button" data-cl="store_week" aria-pressed="true">Store-week totals</button>
+        </div>
+        <div class="wsi-chart" id="ch-corr" data-source="correlation"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================================================== FORECAST -->
+  <section class="wsi-pane" id="forecast" role="tabpanel" aria-labelledby="tab-forecast" hidden>
+    <div class="wsi-sec">
+      <h2 class="wsi-sec-h" id="sec-decomp">Experiment 8 — Taking the series apart</h2>
+      <p class="wsi-sec-n">Classical multiplicative decomposition with a 52-week
+        period. Pick a component: the trend is nearly flat, which means almost
+        everything you see in the raw series is the calendar.</p>
+      <div class="wsi-card">
+        <div class="wsi-ctl">
+          <button class="wsi-chip" type="button" data-dc="observed" aria-pressed="true">Observed</button>
+          <button class="wsi-chip" type="button" data-dc="trend" aria-pressed="false">Trend</button>
+          <button class="wsi-chip" type="button" data-dc="seasonal" aria-pressed="false">Seasonal</button>
+          <button class="wsi-chip" type="button" data-dc="resid" aria-pressed="false">Residual</button>
+        </div>
+        <div class="wsi-chart" id="ch-dec" data-source="weekly"></div>
+        <p class="wsi-note" style="margin-top: var(--cds-gap-sm)">Trend slope is
+          <b data-source="kpis" data-field="value" data-where="metric=e8_trend_slope">—</b>
+          per week against an average week of
+          <b data-source="kpis" data-field="value" data-where="metric=avg_weekly_chain">—</b>.
+          Residual spread after removing trend and season is
+          <b data-source="kpis" data-field="value" data-where="metric=e8_resid_std">—</b>.</p>
+      </div>
+    </div>
+
+    <div class="wsi-sec">
+      <h2 class="wsi-sec-h" id="sec-season">The shape of the year</h2>
+      <p class="wsi-sec-n">Seasonal index by calendar week: 1.00 is an average week.
+        Two weeks carry the year. Switch to months for the planning view.</p>
+      <div class="wsi-card">
+        <div class="wsi-ctl">
+          <button class="wsi-chip" type="button" data-sn="week" aria-pressed="true">By week</button>
+          <button class="wsi-chip" type="button" data-sn="month" aria-pressed="false">By month</button>
+        </div>
+        <div class="wsi-chart" id="ch-season" data-source="seasonality"></div>
+      </div>
+    </div>
+
+    <div class="wsi-sec">
+      <h2 class="wsi-sec-h" id="sec-fc">Fourteen weeks ahead</h2>
+      <p class="wsi-sec-n">Trend projected forward and multiplied by each target
+        week's seasonal index, with a 95% band from the decomposition residuals. The
+        forecast runs straight into the Thanksgiving and pre-Christmas peaks.</p>
+      <div class="wsi-card">
+        <div class="wsi-ctl">
+          <button class="wsi-chip" type="button" data-fb="band" aria-pressed="true">Show 95% band</button>
+        </div>
+        <div class="wsi-chart" id="ch-fc" data-source="weekly forecast"></div>
+        <p class="wsi-note" style="margin-top: var(--cds-gap-sm)">Total forecast over
+          the next fourteen weeks is
+          <b data-source="kpis" data-field="value" data-where="metric=e8_forecast_total">—</b>.</p>
+      </div>
+    </div>
+
+    <div class="wsi-sec">
+      <h2 class="wsi-sec-h" id="sec-bt">Does the model actually work</h2>
+      <p class="wsi-sec-n">The last 13 weeks were held out completely: both the trend
+        and the seasonal index were refitted on the earlier weeks only, so nothing the
+        model scored had influenced it.</p>
+      <div class="wsi-grid-2">
+        <div class="wsi-card">
+          <h3 class="wsi-card-h">Held-out weeks, predicted against actual</h3>
+          <p class="wsi-card-n">Thirteen weeks the model never saw.</p>
+          <div class="wsi-chart" id="ch-bt" data-source="forecast"></div>
+        </div>
+        <div class="wsi-card">
+          <h3 class="wsi-card-h">Accuracy</h3>
+          <p class="wsi-card-n">Against a seasonal-naive benchmark that just repeats
+            the same week from last year.</p>
+          <dl class="wsi-dl">
+            <dt>Model MAPE</dt>
+            <dd data-source="kpis" data-field="value" data-where="metric=e8_mape">—</dd>
+            <dt>Seasonal-naive MAPE</dt>
+            <dd data-source="kpis" data-field="value" data-where="metric=e8_naive_mape">—</dd>
+            <dt>RMSE</dt>
+            <dd data-source="kpis" data-field="value" data-where="metric=e8_rmse">—</dd>
+            <dt>MAE</dt>
+            <dd data-source="kpis" data-field="value" data-where="metric=e8_mae">—</dd>
+            <dt>Weeks used to fit</dt>
+            <dd data-source="kpis" data-field="value" data-where="metric=e8_train_weeks">—</dd>
+            <dt>Weeks held out</dt>
+            <dd data-source="kpis" data-field="value" data-where="metric=e8_holdout_weeks">—</dd>
+          </dl>
+          <p class="wsi-note" style="margin-top: var(--cds-gap-sm)">The model beats the
+            naive benchmark, but not by much, which is the honest read: this series is
+            so seasonal that last year's same week is already a strong guess. The
+            held-out window is also a quiet stretch of late summer, so it does not
+            test the peaks.</p>
+        </div>
+      </div>
+      <div class="wsi-card" style="margin-top: var(--cds-gap-md)">
+        <h3 class="wsi-card-h">Year on year</h3>
+        <p class="wsi-card-n">2010 starts in February and 2012 ends in October, so
+          growth is computed on comparable calendar weeks only.</p>
+        <div class="wsi-tw">
+          <table class="wsi-t" id="t-yoy" data-source="seasonality" data-row-key="label">
+            <thead><tr>
+              <th data-field="label">Year</th>
+              <th data-field="value">Revenue</th>
+              <th data-field="index">Growth on comparable weeks</th>
+            </tr></thead><tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================================================= METHOD -->
+  <section class="wsi-pane" id="method" role="tabpanel" aria-labelledby="tab-method" hidden>
+    <div class="wsi-sec">
+      <h2 class="wsi-sec-h" id="sec-pipeline">How the dataset was built</h2>
+      <p class="wsi-sec-n">Four source files were merged into one table, and every
+        experiment runs on that single integrated dataset.</p>
+      <div class="wsi-card">
+        <ol class="wsi-steps">
+          <li class="wsi-step"><span class="wsi-step-n">1</span><span>
+            <b>Integration.</b> The sales file was joined to the store file on
+            <b>Store</b>, then to the features file on <b>Store</b> and <b>Date</b>.
+            The result is
+            <b data-source="kpis" data-field="value" data-where="metric=records">—</b>
+            store-dept-week rows carrying sales, store attributes and local economic
+            indicators side by side.</span></li>
+          <li class="wsi-step"><span class="wsi-step-n">2</span><span>
+            <b>Preprocessing.</b> Dates parsed to real timestamps, the holiday flag
+            coerced to a boolean, markdown columns read as numbers with blanks treated
+            as zero, and rows without a sales figure dropped.</span></li>
+          <li class="wsi-step"><span class="wsi-step-n">3</span><span>
+            <b>Analysis.</b> The eight experiments below, each written against the
+            integrated table rather than the raw files.</span></li>
+          <li class="wsi-step"><span class="wsi-step-n">4</span><span>
+            <b>Publication.</b> Each experiment's results were exported as a table,
+            and every figure on this dashboard is read from one of those tables. Open
+            Sources on any number to see the file it came from and download it.</span></li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="wsi-sec">
+      <h2 class="wsi-sec-h" id="sec-exps">The eight experiments</h2>
+      <p class="wsi-sec-n">Method and headline result for each.</p>
+      <div class="wsi-card">
+        <div class="wsi-tw" style="max-height: none">
+          <table class="wsi-t" id="t-exp" data-source="experiments" data-row-key="n">
+            <thead><tr>
+              <th data-field="n">#</th>
+              <th data-field="title">Experiment</th>
+              <th data-field="method">Method</th>
+              <th data-field="headline">Headline result</th>
+            </tr></thead><tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="wsi-sec">
+      <h2 class="wsi-sec-h" id="sec-caveat">What to be careful about</h2>
+      <p class="wsi-sec-n">Five things that would change a conclusion if ignored.</p>
+      <div class="wsi-grid-2">
+        <div class="wsi-card">
+          <h3 class="wsi-card-h">The markdown window</h3>
+          <p class="wsi-note">Markdown columns are blank for the first two years of
+            the window and populated from November 2011 onward. In that later window
+            every single record carries a non-zero markdown, so there is no
+            zero-markdown control group anywhere in the data. Any "with promotion
+            versus without" comparison on this dataset is comparing a recorded period
+            with an unrecorded one, not a treated group with an untreated one.</p>
+        </div>
+        <div class="wsi-card">
+          <h3 class="wsi-card-h">The holiday flag</h3>
+          <p class="wsi-note">The flag marks the week ending after Christmas Day,
+            which is a trough, and leaves the pre-Christmas peak unflagged. It also
+            treats Super Bowl and Labor Day as equal to Thanksgiving. Used raw as a
+            model feature it teaches the wrong calendar; replace it with named
+            holidays and a week-of-year index.</p>
+        </div>
+        <div class="wsi-card">
+          <h3 class="wsi-card-h">The headroom figure is a ceiling</h3>
+          <p class="wsi-note">It assumes every store below the top-quartile benchmark
+            could reach that benchmark. Catchment, local income and competition cap
+            what any individual store can do, so treat it as the size of the prize
+            worth investigating, not a target anyone should commit to.</p>
+        </div>
+        <div class="wsi-card">
+          <h3 class="wsi-card-h">Significance is not importance</h3>
+          <p class="wsi-note">At this sample size almost every test rejects its null
+            hypothesis. The holiday difference has a p-value below any threshold and
+            an effect size near 0.05, which is negligible. Read effect sizes and
+            confidence intervals, not stars.</p>
+        </div>
+        <div class="wsi-card">
+          <h3 class="wsi-card-h">Correlation is not a promotion plan</h3>
+          <p class="wsi-note">The markdown depth curve rises steeply across records
+            and almost flat within a store-dept. The cross-sectional version is
+            mostly store size. Nothing here identifies a causal promotion effect;
+            that needs a holdout group the data does not contain.</p>
+        </div>
+        <div class="wsi-card">
+          <h3 class="wsi-card-h">Two and a half years, one chain</h3>
+          <p class="wsi-note">The window opens in February 2010 and closes in October
+            2012, which gives only two complete Christmas peaks to learn seasonality
+            from. Store identities are anonymous and there is no geography, so nothing
+            here separates a regional effect from a store-specific one.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+<div class="wsi-foot">
+  Built from the Walmart Store Sales Forecasting dataset: 421,570
+  store-department-week records across 45 stores and 81 departments, 5&nbsp;Feb
+  2010 to 26&nbsp;Oct 2012. Every figure is read from a table in
+  <code>docs/data/</code>; nothing is recomputed in the browser. Source and the
+  analysis pipeline:
+  <a href="https://github.com/jeet-1236/walmart-sales-intelligence">github.com/jeet-1236/walmart-sales-intelligence</a>.
+</div>
+</div>
+<script>
+/* ---------------------------------------------------------------------------
+   A minimal stand-in for the Dashboard runtime: it loads the source tables
+   over fetch and exposes the same `dash` surface the page already uses, so no
+   chart code has to change.
+   --------------------------------------------------------------------------- */
+window.dash = (function () {
+  const IDS = ["correlation", "curves", "depts", "dist_fits", "econ_bands", "experiments", "findings", "forecast", "holidays", "kpis", "markdown", "model", "sampling", "seasonality", "segments", "store_dept", "store_week", "stores", "top_weeks", "weekly"];
+  const COLORS = ["#3C7FB1", "#C8853F", "#5F9B74", "#A2648A", "#7C85BE", "#A8894A", "#5E9B9B", "#B06C62"];
+  const DEFAULTS = { format: 'all', store: null };
+
+  const store = {};
+  IDS.forEach((id) => {
+    store[id] = { status: 'loading', data: [], columns: [], refreshing: false, meta: [] };
+  });
+
+  let params = Object.assign({}, DEFAULTS);
+  const callbacks = [];
+  let booted = false;
+
+  function fire() {
+    callbacks.forEach((fn) => {
+      try { fn(); } catch (e) { console.error('onData callback failed', e); }
+    });
+  }
+
+  async function one(id) {
+    try {
+      const res = await fetch('data/' + id + '.csv', { cache: 'no-cache' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const rows = d3.csvParse(await res.text());
+      store[id] = {
+        status: 'ok', data: rows, columns: rows.columns || [],
+        refreshing: false, meta: [],
+      };
+    } catch (err) {
+      store[id] = {
+        status: 'error', data: [], columns: [], refreshing: false, meta: [],
+        message: String(err && err.message ? err.message : err),
+      };
+      console.error('could not load ' + id, err);
+    }
+  }
+
+  async function loadAll() {
+    await Promise.all(IDS.map(one));
+    booted = true;
+    const boot = document.querySelector('.wsi-boot');
+    if (boot) boot.remove();
+    document.querySelectorAll('.dash-skeleton')
+      .forEach((el) => el.classList.remove('dash-skeleton'));
+    fire();
+  }
+
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    if (!booted) return;
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(fire, 160);
+  });
+
+  return {
+    colors: COLORS,
+    data(id) {
+      return store[id] || { status: 'missing', data: [], columns: [], meta: [] };
+    },
+    onData(fn) {
+      callbacks.push(fn);
+      try { fn(); } catch (e) { console.error('onData callback failed', e); }
+    },
+    params() { return Object.assign({}, params); },
+    setParams(next) { Object.assign(params, next || {}); fire(); },
+    resetParams() { params = Object.assign({}, DEFAULTS); fire(); },
+    setLink(name) {
+      try { history.replaceState(null, '', name ? '#' + name : ' '); } catch (e) { /* ignore */ }
+    },
+    refresh() { loadAll(); },
+    boot: loadAll,
+  };
+}());
+</script>
+<script>
+/* ---------------------------------------------------------------- helpers */
+window.W = (function () {
+  const K = {};
+
+  const si = (v) => d3.format('.3~s')(v).replace('G', 'B').replace('T', 'T');
+  const F = {
+    usd: (v) => (Math.abs(v) >= 1e6 ? '$' + si(v)
+      : Math.abs(v) >= 100 ? '$' + d3.format(',.0f')(v)
+      : '$' + d3.format(',.3~f')(v)),
+    usdFull: (v) => '$' + d3.format(',.0f')(v),
+    usdAxis: (v) => (Math.abs(v) >= 1000 ? '$' + si(v) : '$' + d3.format(',.0f')(v)),
+    num: (v) => d3.format(',')(v),
+    pct: (v) => d3.format('.2~f')(v) + '%',
+    pctS: (v) => d3.format('+.1f')(v) + '%',
+    ratio: (v) => d3.format('.4~f')(v),
+    p: (v) => (v === 0 ? '0' : Math.abs(v) < 0.001 ? d3.format('.2e')(v)
+      : d3.format('.4f')(v)),
+    date: (d) => d3.utcFormat('%b %-d, %Y')(d),
+    mon: (d) => d3.utcFormat('%b %Y')(d),
+  };
+  K.F = F;
+
+  K.unit = function (unit, v) {
+    if (v === '' || v === null || v === undefined || !isFinite(v)) return '—';
+    switch (unit) {
+      case 'usd': return F.usd(v);
+      case 'usd2': return '$' + si(v);
+      case 'pct': return F.pct(v);
+      case 'count': case 'sqft': return F.num(v);
+      case 'p': return F.p(v);
+      case 'ratio': return F.ratio(v);
+      default: return F.num(v);
+    }
+  };
+
+  /* rows of a dataset, or [] */
+  K.rows = (id) => {
+    const d = dash.data(id);
+    return d.status === 'ok' && Array.isArray(d.data) ? d.data : [];
+  };
+  K.ok = (id) => dash.data(id).status === 'ok';
+  K.err = (id) => dash.data(id).status === 'error' ||
+    dash.data(id).status === 'connect' || dash.data(id).status === 'declined';
+
+  K.parseDate = (s) => new Date(String(s).slice(0, 10) + 'T00:00:00Z');
+  K.n = (v) => (v === '' || v === null || v === undefined ? null : +v);
+
+  /* a chart frame: clears the element, measures width, returns svg + box */
+  K.frame = function (el, height, margin) {
+    el.querySelectorAll('svg').forEach((s) => s.remove());
+    const fail = el.querySelector('.wsi-fail');
+    if (fail) fail.remove();
+    const W = Math.max(220, el.clientWidth || 320);
+    const H = height;
+    const svg = d3.select(el).append('svg')
+      .attr('width', '100%').attr('height', H)
+      .attr('viewBox', `0 0 ${W} ${H}`)
+      .attr('preserveAspectRatio', 'xMinYMin meet')
+      .attr('role', 'img');
+    return { svg, W, H, m: Object.assign({ t: 12, r: 14, b: 26, l: 40 }, margin || {}) };
+  };
+
+  K.failLine = function (el, h) {
+    el.querySelectorAll('svg').forEach((s) => s.remove());
+    if (el.querySelector('.wsi-fail')) return;
+    const d = document.createElement('div');
+    d.className = 'wsi-fail';
+    d.style.minHeight = h + 'px';
+    const dot = document.createElement('span');
+    dot.className = 'wsi-dot';
+    const t = document.createElement('span');
+    t.textContent = 'Failed to load';
+    d.append(dot, t);
+    el.appendChild(d);
+  };
+
+  /* widest rendered tick label, so margins fit the data actually drawn */
+  K.tickW = function (svg, vals, fmt) {
+    const g = svg.append('g').attr('visibility', 'hidden');
+    let w = 0;
+    vals.forEach((v) => {
+      const t = g.append('text').attr('font-size', 11).text(fmt(v));
+      w = Math.max(w, t.node().getComputedTextLength());
+    });
+    g.remove();
+    return Math.ceil(w);
+  };
+
+  K.axis = function (g) {
+    g.attr('font-size', null).attr('font-family', null);
+    g.selectAll('text').attr('font-size', 11).attr('fill', 'var(--color-fg-muted)');
+    g.selectAll('line').attr('stroke', 'var(--cds-chart-axis)');
+    g.select('.domain').attr('stroke', 'var(--cds-chart-axis)');
+    return g;
+  };
+
+  K.grid = function (svg, scale, x0, x1, ticks) {
+    const g = svg.append('g');
+    scale.ticks(ticks).forEach((t) => {
+      g.append('line').attr('x1', x0).attr('x2', x1)
+        .attr('y1', scale(t)).attr('y2', scale(t))
+        .attr('stroke', 'var(--cds-chart-grid)').attr('stroke-width', 1);
+    });
+    return g;
+  };
+
+  /* one tooltip per chart box */
+  K.tip = function (el) {
+    let t = el.querySelector('.wsi-tip');
+    if (!t) {
+      t = document.createElement('div');
+      t.className = 'wsi-tip';
+      t.hidden = true;
+      el.appendChild(t);
+    }
+    return {
+      show(title, rows, x, y) {
+        t.replaceChildren();
+        if (title) {
+          const h = document.createElement('div');
+          h.className = 'wsi-tip-t';
+          h.textContent = title;
+          t.appendChild(h);
+        }
+        rows.forEach((r) => {
+          const line = document.createElement('div');
+          line.className = 'wsi-tip-r';
+          if (r.color) {
+            const sw = document.createElement('span');
+            sw.className = 'wsi-sw';
+            sw.style.background = r.color;
+            line.appendChild(sw);
+          }
+          const nm = document.createElement('span');
+          nm.textContent = r.name;
+          const vl = document.createElement('span');
+          vl.className = 'wsi-tip-v';
+          vl.textContent = r.value;
+          line.append(nm, vl);
+          t.appendChild(line);
+        });
+        t.hidden = false;
+        const bw = el.clientWidth;
+        const tw = t.offsetWidth;
+        let left = x + 12;
+        if (left + tw > bw) left = Math.max(0, x - tw - 12);
+        t.style.left = left + 'px';
+        t.style.top = Math.max(0, y - t.offsetHeight - 8) + 'px';
+      },
+      hide() { t.hidden = true; },
+    };
+  };
+
+  /* fill every element marked against the kpis table */
+  K.fillKpis = function () {
+    const rows = K.rows('kpis');
+    const by = new Map(rows.map((r) => [r.metric, r]));
+    document.querySelectorAll('[data-source="kpis"][data-where]').forEach((el) => {
+      const m = /metric=(.+)$/.exec(el.getAttribute('data-where'));
+      if (!m) return;
+      const r = by.get(m[1]);
+      el.textContent = r ? K.unit(r.unit, +r.value) : '—';
+      el.classList.remove('dash-skeleton');
+    });
+    const peak = by.get('e8_peak_value');
+    const tro = by.get('e8_trough_value');
+    const pd = document.getElementById('ov-peak-date');
+    const td = document.getElementById('ov-trough-date');
+    if (pd && peak) pd.textContent = 'week ending ' + F.date(K.parseDate(peak.note));
+    if (td && tro) td.textContent = 'week ending ' + F.date(K.parseDate(tro.note));
+  };
+
+  /* table bodies: plain words only, the key on the row */
+  K.fillTable = function (tbl, rows, cols, keyOf) {
+    const tb = tbl.querySelector('tbody');
+    tb.replaceChildren();
+    rows.forEach((r) => {
+      const tr = document.createElement('tr');
+      if (keyOf) tr.dataset.key = keyOf(r);
+      cols.forEach((c) => {
+        const td = document.createElement('td');
+        if (c.wrap) td.className = 'wsi-wrap';
+        const v = c.get(r);
+        if (v && typeof v === 'object' && v.bar !== undefined) {
+          const b = document.createElement('span');
+          b.className = 'wsi-bar';
+          b.style.width = Math.max(2, v.bar * 56) + 'px';
+          b.style.background = v.color || dash.colors[0];
+          const s = document.createElement('span');
+          s.textContent = ' ' + v.text;
+          td.append(b, s);
+        } else {
+          td.textContent = v === null || v === undefined || v === '' ? '—' : v;
+          if (c.cls) td.className = ((td.className || '') + ' ' + c.cls(r)).trim();
+        }
+        tr.appendChild(td);
+      });
+      tb.appendChild(tr);
+    });
+  };
+
+  /* sortable headers; returns current {key, dir} */
+  K.sorter = function (tbl, initial, onChange) {
+    const st = Object.assign({}, initial);
+    tbl.querySelectorAll('th.wsi-s').forEach((th) => {
+      th.addEventListener('click', () => {
+        const k = th.dataset.k;
+        if (st.key === k) st.dir = st.dir === 'desc' ? 'asc' : 'desc';
+        else { st.key = k; st.dir = 'desc'; }
+        tbl.querySelectorAll('th.wsi-s').forEach((o) => o.removeAttribute('aria-sort'));
+        th.setAttribute('aria-sort', st.dir === 'desc' ? 'descending' : 'ascending');
+        onChange();
+      });
+    });
+    return st;
+  };
+
+  K.sortRows = function (rows, st, numeric) {
+    const k = st.key;
+    const s = rows.slice().sort((a, b) => {
+      let x = a[k], y = b[k];
+      if (numeric.has(k)) {
+        x = x === '' ? -Infinity : +x;
+        y = y === '' ? -Infinity : +y;
+        return x - y;
+      }
+      return String(x).localeCompare(String(y));
+    });
+    return st.dir === 'desc' ? s.reverse() : s;
+  };
+
+  /* chip groups: one pressed at a time, or toggles */
+  K.chips = function (attr, onPick, multi) {
+    const btns = Array.from(document.querySelectorAll(`[data-${attr}]`));
+    btns.forEach((b) => b.addEventListener('click', () => {
+      if (multi) {
+        b.setAttribute('aria-pressed',
+          b.getAttribute('aria-pressed') === 'true' ? 'false' : 'true');
+      } else {
+        btns.forEach((o) => o.setAttribute('aria-pressed', 'false'));
+        b.setAttribute('aria-pressed', 'true');
+      }
+      onPick(b.dataset[attr], b);
+    }));
+    return {
+      picked: () => (btns.find((b) => b.getAttribute('aria-pressed') === 'true')
+        || {}).dataset?.[attr],
+      on: (v) => btns.some((b) => b.dataset[attr] === v &&
+        b.getAttribute('aria-pressed') === 'true'),
+    };
+  };
+
+  return K;
+}());
+</script>
+<script>
+/* -------------------------------------------- overview + business impact */
+window.D1 = (function () {
+  const K = window.W, F = K.F;
+  const draw = {};
+
+  /* ---- chain weekly revenue, the hero chart ---- */
+  const wkOn = { ma4: false, ma12: false, trend: true, hol: true };
+  K.chips('wk', (v, b) => {
+    wkOn[v] = b.getAttribute('aria-pressed') === 'true';
+    draw.weekly();
+  }, true);
+
+  draw.weekly = function () {
+    const el = document.getElementById('ch-weekly');
+    if (!el || el.offsetParent === null) return;
+    if (K.err('weekly')) return K.failLine(el, 300);
+    const rows = K.rows('weekly');
+    const f = K.frame(el, 320);
+    if (!rows.length) return;
+    const d = rows.map((r) => ({
+      date: K.parseDate(r.date), v: +r.sales,
+      ma4: K.n(r.ma4), ma12: K.n(r.ma12), trend: K.n(r.trend),
+      hol: r.holiday === 'yes',
+    }));
+    const y = d3.scaleLinear([0, d3.max(d, (r) => r.v) * 1.06], [0, 1]);
+    f.m.l = K.tickW(f.svg, y.ticks(5), F.usdAxis) + 10;
+    const x = d3.scaleUtc(d3.extent(d, (r) => r.date), [f.m.l, f.W - f.m.r]);
+    y.range([f.H - f.m.b, f.m.t]);
+    K.grid(f.svg, y, f.m.l, f.W - f.m.r, 5);
+    const g = f.svg.append('g');
+    const area = d3.area().x((r) => x(r.date)).y0(y(0)).y1((r) => y(r.v));
+    const gid = 'wsi-g-wk';
+    const lg = f.svg.append('defs').append('linearGradient')
+      .attr('id', gid).attr('x1', 0).attr('y1', 0).attr('x2', 0).attr('y2', 1);
+    [[0, .26], [.25, .16], [.5, .08], [.75, .03], [1, 0]].forEach(([o, op]) => {
+      lg.append('stop').attr('offset', o).attr('stop-opacity', op)
+        .attr('style', `stop-color: ${dash.colors[0]}`);
+    });
+    g.append('path').attr('d', area(d)).attr('fill', `url(#${gid})`);
+    const line = (key, color, wdt) => {
+      const pts = d.filter((r) => r[key] !== null);
+      if (!pts.length) return;
+      g.append('path').attr('fill', 'none').attr('stroke', color)
+        .attr('stroke-width', wdt).attr('stroke-linecap', 'round')
+        .attr('stroke-linejoin', 'round')
+        .attr('d', d3.line().x((r) => x(r.date)).y((r) => y(r[key]))(pts));
+    };
+    line('v', dash.colors[0], 2);
+    if (wkOn.ma4) line('ma4', dash.colors[1], 1.5);
+    if (wkOn.ma12) line('ma12', dash.colors[2], 1.5);
+    if (wkOn.trend) line('trend', 'var(--cds-chart-reference)', 1.5);
+    if (wkOn.hol) {
+      g.selectAll('circle.h').data(d.filter((r) => r.hol)).join('circle')
+        .attr('cx', (r) => x(r.date)).attr('cy', (r) => y(r.v)).attr('r', 3)
+        .attr('fill', 'var(--cds-chart-status-critical)');
+    }
+    K.axis(f.svg.append('g').attr('transform', `translate(0,${f.H - f.m.b})`)
+      .call(d3.axisBottom(x).ticks(Math.max(2, Math.floor(f.W / 110)))));
+    K.axis(f.svg.append('g').attr('transform', `translate(${f.m.l},0)`)
+      .call(d3.axisLeft(y).ticks(5).tickFormat(F.usdAxis).tickSize(0)))
+      .select('.domain').remove();
+
+    const tip = K.tip(el);
+    const hov = g.append('circle').attr('r', 4).attr('fill', dash.colors[0])
+      .attr('stroke', 'var(--color-panel)').attr('stroke-width', 2).attr('opacity', 0);
+    f.svg.append('rect').attr('x', f.m.l).attr('y', f.m.t)
+      .attr('width', Math.max(1, f.W - f.m.l - f.m.r))
+      .attr('height', Math.max(1, f.H - f.m.t - f.m.b))
+      .attr('fill', 'transparent')
+      .on('mousemove', function (e) {
+        const [mx, my] = d3.pointer(e, this);
+        const dt = x.invert(mx + f.m.l);
+        const i = d3.leastIndex(d, (a, b) =>
+          Math.abs(a.date - dt) - Math.abs(b.date - dt));
+        const r = d[i];
+        hov.attr('opacity', 1).attr('cx', x(r.date)).attr('cy', y(r.v));
+        const lines = [{ name: 'Chain revenue', value: F.usdFull(r.v), color: dash.colors[0] }];
+        if (wkOn.trend && r.trend !== null) lines.push({ name: 'Trend', value: F.usdFull(r.trend) });
+        if (r.hol) lines.push({ name: 'Flagged holiday week', value: 'yes' });
+        tip.show(F.date(r.date), lines, x(r.date), y(r.v));
+      })
+      .on('mouseleave', () => { tip.hide(); hov.attr('opacity', 0); });
+  };
+
+  /* ---- findings cards ---- */
+  draw.findings = function () {
+    const host = document.getElementById('find-grid');
+    if (!host) return;
+    const rows = K.rows('findings');
+    if (!rows.length) return;
+    host.replaceChildren();
+    rows.slice().sort((a, b) => +a.n - +b.n).forEach((r) => {
+      const card = document.createElement('div');
+      card.className = 'wsi-card';
+      const tag = document.createElement('span');
+      tag.className = 'wsi-tag';
+      tag.setAttribute('data-source', 'findings');
+      tag.setAttribute('data-field', 'tag');
+      tag.setAttribute('data-where', 'n=' + r.n);
+      tag.textContent = r.tag;
+      const t = document.createElement('h3');
+      t.className = 'wsi-f-t';
+      t.setAttribute('data-source', 'findings');
+      t.setAttribute('data-field', 'title');
+      t.setAttribute('data-where', 'n=' + r.n);
+      t.textContent = r.title;
+      const m = document.createElement('div');
+      m.className = 'wsi-f-m';
+      m.setAttribute('data-source', 'findings');
+      m.setAttribute('data-field', 'metric');
+      m.setAttribute('data-where', 'n=' + r.n);
+      m.textContent = r.metric;
+      const dd = document.createElement('p');
+      dd.className = 'wsi-f-d';
+      dd.setAttribute('data-source', 'findings');
+      dd.setAttribute('data-field', 'detail');
+      dd.setAttribute('data-where', 'n=' + r.n);
+      dd.textContent = r.detail;
+      const a = document.createElement('div');
+      a.className = 'wsi-f-a';
+      a.setAttribute('data-source', 'findings');
+      a.setAttribute('data-field', 'action');
+      a.setAttribute('data-where', 'n=' + r.n);
+      a.textContent = r.action;
+      card.append(tag, t, m, dd, a);
+      host.appendChild(card);
+    });
+  };
+
+  /* ---- holiday lift ---- */
+  draw.hol = function () {
+    const el = document.getElementById('ch-hol');
+    if (!el || el.offsetParent === null) return;
+    if (K.err('holidays')) return K.failLine(el, 220);
+    const rows = K.rows('holidays');
+    const f = K.frame(el, 240, { b: 40, t: 18 });
+    if (!rows.length) return;
+    const d = rows.map((r) => ({ k: r.holiday, v: +r.lift_pct, a: +r.avg_chain_week, b: +r.baseline_week, w: +r.weeks_observed }))
+      .sort((p, q) => q.v - p.v);
+    const y = d3.scaleLinear([Math.min(0, d3.min(d, (r) => r.v) * 1.15), d3.max(d, (r) => r.v) * 1.15], [0, 1]);
+    f.m.l = K.tickW(f.svg, y.ticks(5), (v) => v + '%') + 10;
+    y.range([f.H - f.m.b, f.m.t]);
+    const x = d3.scaleBand().domain(d.map((r) => r.k))
+      .range([f.m.l, f.W - f.m.r]).padding(0.34);
+    K.grid(f.svg, y, f.m.l, f.W - f.m.r, 5);
+    f.svg.append('line').attr('x1', f.m.l).attr('x2', f.W - f.m.r)
+      .attr('y1', y(0)).attr('y2', y(0)).attr('stroke', 'var(--cds-chart-axis)');
+    const g = f.svg.append('g');
+    const tip = K.tip(el);
+    g.selectAll('rect').data(d).join('rect')
+      .attr('x', (r) => x(r.k)).attr('width', Math.min(32, x.bandwidth()))
+      .attr('y', (r) => (r.v >= 0 ? y(r.v) : y(0)))
+      .attr('height', (r) => Math.abs(y(r.v) - y(0)))
+      .attr('rx', 4)
+      .attr('fill', (r) => (r.v >= 0 ? dash.colors[0] : 'var(--cds-chart-status-critical)'))
+      .on('mousemove', function (e, r) {
+        const [mx, my] = d3.pointer(e, f.svg.node());
+        tip.show(r.k, [
+          { name: 'Lift', value: F.pctS(r.v) },
+          { name: 'Flagged week', value: F.usd(r.a) },
+          { name: 'Same-month baseline', value: F.usd(r.b) },
+          { name: 'Weeks observed', value: r.w },
+        ], mx, my);
+      })
+      .on('mouseleave', tip.hide);
+    g.selectAll('text.v').data(d).join('text')
+      .attr('x', (r) => x(r.k) + Math.min(32, x.bandwidth()) / 2)
+      .attr('y', (r) => (r.v >= 0 ? y(r.v) - 5 : y(r.v) + 13))
+      .attr('text-anchor', 'middle').attr('font-size', 11)
+      .attr('fill', 'var(--color-fg)').text((r) => F.pctS(r.v));
+    K.axis(f.svg.append('g').attr('transform', `translate(0,${y(0)})`)
+      .call(d3.axisBottom(x).tickSize(0)))
+      .selectAll('text').attr('y', f.H - f.m.b - y(0) + 14);
+    K.axis(f.svg.append('g').attr('transform', `translate(${f.m.l},0)`)
+      .call(d3.axisLeft(y).ticks(5).tickFormat((v) => v + '%').tickSize(0)))
+      .select('.domain').remove();
+  };
+
+  draw.topWeeks = function () {
+    const t = document.getElementById('t-top');
+    if (!t) return;
+    const rows = K.rows('top_weeks');
+    if (!rows.length) return;
+    K.fillTable(t, rows, [
+      { get: (r) => F.date(K.parseDate(r.date)) },
+      { get: (r) => r.week },
+      { get: (r) => F.usd(+r.revenue) },
+      { get: (r) => F.pctS(+r.vs_median_pct) },
+      { get: (r) => r.flagged, cls: (r) => (r.flagged === 'yes' ? 'wsi-pos' : 'wsi-neg') },
+    ], (r) => r.date);
+  };
+
+  /* ---- store formats ---- */
+  draw.fmt = function () {
+    const el = document.getElementById('ch-fmt');
+    if (!el || el.offsetParent === null) return;
+    if (K.err('segments')) return K.failLine(el, 220);
+    const rows = K.rows('segments').filter((r) => r.kind === 'format');
+    const f = K.frame(el, 240, { b: 40, t: 18 });
+    if (!rows.length) return;
+    const d = rows.map((r) => ({ k: r.group, v: +r.rev_per_sqft, s: +r.avg_size, n: +r.stores, rev: +r.revenue, sh: +r.rev_share_pct }));
+    const y = d3.scaleLinear([0, d3.max(d, (r) => r.v) * 1.15], [0, 1]);
+    f.m.l = K.tickW(f.svg, y.ticks(5), F.usdAxis) + 10;
+    y.range([f.H - f.m.b, f.m.t]);
+    const x = d3.scaleBand().domain(d.map((r) => r.k))
+      .range([f.m.l, f.W - f.m.r]).padding(0.34);
+    K.grid(f.svg, y, f.m.l, f.W - f.m.r, 5);
+    const tip = K.tip(el);
+    f.svg.append('g').selectAll('rect').data(d).join('rect')
+      .attr('x', (r) => x(r.k)).attr('width', Math.min(44, x.bandwidth()))
+      .attr('y', (r) => y(r.v)).attr('height', (r) => y(0) - y(r.v)).attr('rx', 4)
+      .attr('fill', (r, i) => dash.colors[i])
+      .on('mousemove', function (e, r) {
+        const [mx, my] = d3.pointer(e, f.svg.node());
+        tip.show(r.k, [
+          { name: 'Revenue per sq ft', value: '$' + d3.format(',.0f')(r.v) },
+          { name: 'Stores', value: r.n },
+          { name: 'Average size', value: F.num(r.s) + ' sq ft' },
+          { name: 'Revenue share', value: F.pct(r.sh) },
+        ], mx, my);
+      })
+      .on('mouseleave', tip.hide);
+    f.svg.append('g').selectAll('text').data(d).join('text')
+      .attr('x', (r) => x(r.k) + Math.min(44, x.bandwidth()) / 2)
+      .attr('y', (r) => y(r.v) - 5).attr('text-anchor', 'middle')
+      .attr('font-size', 11).attr('fill', 'var(--color-fg)')
+      .text((r) => '$' + d3.format(',.0f')(r.v));
+    K.axis(f.svg.append('g').attr('transform', `translate(0,${f.H - f.m.b})`)
+      .call(d3.axisBottom(x).tickSize(0)));
+    K.axis(f.svg.append('g').attr('transform', `translate(${f.m.l},0)`)
+      .call(d3.axisLeft(y).ticks(5).tickFormat(F.usdAxis).tickSize(0)))
+      .select('.domain').remove();
+  };
+
+  draw.fmtTable = function () {
+    const t = document.getElementById('t-fmt');
+    if (!t) return;
+    const rows = K.rows('segments').filter((r) => r.kind === 'format');
+    if (!rows.length) return;
+    K.fillTable(t, rows, [
+      { get: (r) => r.group },
+      { get: (r) => r.stores },
+      { get: (r) => F.num(+r.avg_size) },
+      { get: (r) => F.usd(+r.revenue) },
+      { get: (r) => F.pct(+r.rev_share_pct) },
+      { get: (r) => '$' + d3.format(',.0f')(+r.rev_per_sqft) },
+    ], (r) => r.group);
+  };
+
+  /* ---- department pareto ---- */
+  draw.pareto = function () {
+    const el = document.getElementById('ch-pareto');
+    if (!el || el.offsetParent === null) return;
+    if (K.err('depts')) return K.failLine(el, 260);
+    const all = K.rows('depts');
+    const f = K.frame(el, 280, { b: 34, t: 16, r: 44 });
+    if (!all.length) return;
+    const d = all.slice().sort((a, b) => +b.revenue - +a.revenue).slice(0, 25)
+      .map((r) => ({ k: String(r.dept), v: +r.revenue, c: +r.cum_pct, s: +r.share_pct }));
+    const y = d3.scaleLinear([0, d3.max(d, (r) => r.v) * 1.08], [0, 1]);
+    f.m.l = K.tickW(f.svg, y.ticks(5), F.usdAxis) + 10;
+    y.range([f.H - f.m.b, f.m.t]);
+    const x = d3.scaleBand().domain(d.map((r) => r.k))
+      .range([f.m.l, f.W - f.m.r]).padding(0.26);
+    const y2 = d3.scaleLinear([0, 100], [f.H - f.m.b, f.m.t]);
+    K.grid(f.svg, y, f.m.l, f.W - f.m.r, 5);
+    const tip = K.tip(el);
+    f.svg.append('g').selectAll('rect').data(d).join('rect')
+      .attr('x', (r) => x(r.k)).attr('width', x.bandwidth())
+      .attr('y', (r) => y(r.v)).attr('height', (r) => y(0) - y(r.v)).attr('rx', 3)
+      .attr('fill', dash.colors[0])
+      .on('mousemove', function (e, r) {
+        const [mx, my] = d3.pointer(e, f.svg.node());
+        tip.show('Department ' + r.k, [
+          { name: 'Revenue', value: F.usd(r.v), color: dash.colors[0] },
+          { name: 'Share', value: F.pct(r.s) },
+          { name: 'Cumulative', value: F.pct(r.c) },
+        ], mx, my);
+      })
+      .on('mouseleave', tip.hide);
+    f.svg.append('path').attr('fill', 'none').attr('stroke', dash.colors[3])
+      .attr('stroke-width', 2).attr('stroke-linecap', 'round')
+      .attr('d', d3.line().x((r) => x(r.k) + x.bandwidth() / 2).y((r) => y2(r.c))(d));
+    K.axis(f.svg.append('g').attr('transform', `translate(0,${f.H - f.m.b})`)
+      .call(d3.axisBottom(x).tickSize(0)
+        .tickValues(x.domain().filter((v, i) => i % 2 === 0))));
+    K.axis(f.svg.append('g').attr('transform', `translate(${f.m.l},0)`)
+      .call(d3.axisLeft(y).ticks(5).tickFormat(F.usdAxis).tickSize(0)))
+      .select('.domain').remove();
+    K.axis(f.svg.append('g').attr('transform', `translate(${f.W - f.m.r},0)`)
+      .call(d3.axisRight(y2).ticks(4).tickFormat((v) => v + '%').tickSize(0)))
+      .select('.domain').remove();
+  };
+
+  const deptSort = { key: 'revenue', dir: 'desc' };
+  const deptNum = new Set(['dept', 'revenue', 'share_pct', 'cum_pct', 'avg', 'cv', 'stores', 'hol_lift']);
+  draw.deptTable = function () {
+    const t = document.getElementById('t-dept');
+    if (!t) return;
+    let rows = K.rows('depts');
+    if (!rows.length) return;
+    const q = (document.getElementById('dept-q').value || '').trim();
+    if (q) rows = rows.filter((r) => String(r.dept).includes(q));
+    const cnt = document.getElementById('dept-count');
+    if (cnt) cnt.textContent = rows.length + ' of ' + K.rows('depts').length;
+    K.fillTable(t, K.sortRows(rows, deptSort, deptNum), [
+      { get: (r) => r.dept },
+      { get: (r) => F.usd(+r.revenue) },
+      { get: (r) => F.pct(+r.share_pct) },
+      { get: (r) => F.pct(+r.cum_pct) },
+      { get: (r) => F.usd(+r.avg) },
+      { get: (r) => F.ratio(+r.cv) },
+      { get: (r) => r.stores },
+      { get: (r) => (r.hol_lift === '' ? null : F.pctS(+r.hol_lift)) },
+    ], (r) => r.dept);
+  };
+
+  /* ---- markdown ---- */
+  let mdView = 'band';
+  K.chips('md', (v) => { mdView = v; draw.md(); });
+  draw.md = function () {
+    const el = document.getElementById('ch-md');
+    if (!el || el.offsetParent === null) return;
+    if (K.err('markdown')) return K.failLine(el, 240);
+    const rows = K.rows('markdown').filter((r) => r.kind === mdView);
+    const f = K.frame(el, 260, { b: 46, t: 18 });
+    if (!rows.length) return;
+    const d = rows.map((r) => ({
+      k: r.label, v: +r.avg_sales,
+      md: K.n(r.markdown_or_share), extra: K.n(r.vs_lightest_or_active),
+      corr: K.n(r.corr_within_store), tot: K.n(r.records_or_total),
+    }));
+    const y = d3.scaleLinear([0, d3.max(d, (r) => r.v) * 1.14], [0, 1]);
+    f.m.l = K.tickW(f.svg, y.ticks(5), F.usdAxis) + 10;
+    y.range([f.H - f.m.b, f.m.t]);
+    const x = d3.scaleBand().domain(d.map((r) => r.k))
+      .range([f.m.l, f.W - f.m.r]).padding(0.3);
+    K.grid(f.svg, y, f.m.l, f.W - f.m.r, 5);
+    const tip = K.tip(el);
+    f.svg.append('g').selectAll('rect').data(d).join('rect')
+      .attr('x', (r) => x(r.k)).attr('width', Math.min(40, x.bandwidth()))
+      .attr('y', (r) => y(r.v)).attr('height', (r) => y(0) - y(r.v)).attr('rx', 4)
+      .attr('fill', dash.colors[0])
+      .on('mousemove', function (e, r) {
+        const [mx, my] = d3.pointer(e, f.svg.node());
+        const lines = [{ name: 'Average sales', value: F.usd(r.v), color: dash.colors[0] }];
+        if (mdView === 'band') {
+          lines.push({ name: 'Average markdown', value: F.usd(r.md) });
+          lines.push({ name: 'vs lightest band', value: F.pctS(r.extra) });
+          lines.push({ name: 'Records', value: F.num(r.tot) });
+        } else {
+          lines.push({ name: 'Total spend', value: F.usd(r.tot) });
+          lines.push({ name: 'Share of markdown', value: F.pct(r.md) });
+          lines.push({ name: 'Records active', value: F.pct(r.extra) });
+          lines.push({ name: 'Correlation within store', value: F.ratio(r.corr) });
+        }
+        tip.show(r.k, lines, mx, my);
+      })
+      .on('mouseleave', tip.hide);
+    K.axis(f.svg.append('g').attr('transform', `translate(0,${f.H - f.m.b})`)
+      .call(d3.axisBottom(x).tickSize(0)))
+      .selectAll('text').attr('transform', 'rotate(-18)').attr('text-anchor', 'end');
+    K.axis(f.svg.append('g').attr('transform', `translate(${f.m.l},0)`)
+      .call(d3.axisLeft(y).ticks(5).tickFormat(F.usdAxis).tickSize(0)))
+      .select('.domain').remove();
+  };
+
+  /* ---- economic sensitivity ---- */
+  let econ = 'Unemployment';
+  draw.econSetup = function () {
+    const host = document.getElementById('econ-pick');
+    if (!host || host.childElementCount) return;
+    const rows = K.rows('econ_bands');
+    if (!rows.length) return;
+    const drivers = Array.from(new Set(rows.map((r) => r.driver)));
+    drivers.forEach((dv) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'wsi-chip';
+      b.textContent = dv;
+      b.setAttribute('aria-pressed', dv === econ ? 'true' : 'false');
+      b.addEventListener('click', () => {
+        econ = dv;
+        host.querySelectorAll('.wsi-chip').forEach((o) =>
+          o.setAttribute('aria-pressed', o.textContent === dv ? 'true' : 'false'));
+        draw.econ();
+      });
+      host.appendChild(b);
+    });
+  };
+  draw.econ = function () {
+    const el = document.getElementById('ch-econ');
+    if (!el || el.offsetParent === null) return;
+    if (K.err('econ_bands')) return K.failLine(el, 240);
+    draw.econSetup();
+    const rows = K.rows('econ_bands').filter((r) => r.driver === econ)
+      .sort((a, b) => +a.sort - +b.sort);
+    const f = K.frame(el, 260, { b: 40, t: 20 });
+    if (!rows.length) return;
+    const d = rows.map((r) => ({ k: r.band, v: +r.avg, n: +r.n, p: +r.vs_first_pct }));
+    const lo = d3.min(d, (r) => r.v), hi = d3.max(d, (r) => r.v);
+    const y = d3.scaleLinear([lo * 0.92, hi * 1.04], [0, 1]);
+    f.m.l = K.tickW(f.svg, y.ticks(5), F.usdAxis) + 10;
+    y.range([f.H - f.m.b, f.m.t]);
+    const x = d3.scaleBand().domain(d.map((r) => r.k))
+      .range([f.m.l, f.W - f.m.r]).padding(0.3);
+    K.grid(f.svg, y, f.m.l, f.W - f.m.r, 5);
+    const tip = K.tip(el);
+    f.svg.append('g').selectAll('rect').data(d).join('rect')
+      .attr('x', (r) => x(r.k)).attr('width', Math.min(44, x.bandwidth()))
+      .attr('y', (r) => y(r.v)).attr('height', (r) => f.H - f.m.b - y(r.v))
+      .attr('rx', 4).attr('fill', dash.colors[0])
+      .on('mousemove', function (e, r) {
+        const [mx, my] = d3.pointer(e, f.svg.node());
+        tip.show(econ + ' ' + r.k, [
+          { name: 'Average store-week', value: F.usd(r.v), color: dash.colors[0] },
+          { name: 'vs lowest band', value: F.pctS(r.p) },
+          { name: 'Store-weeks', value: F.num(r.n) },
+        ], mx, my);
+      })
+      .on('mouseleave', tip.hide);
+    f.svg.append('g').selectAll('text').data(d).join('text')
+      .attr('x', (r) => x(r.k) + Math.min(44, x.bandwidth()) / 2)
+      .attr('y', (r) => y(r.v) - 6).attr('text-anchor', 'middle')
+      .attr('font-size', 11).attr('fill', 'var(--color-fg-muted)')
+      .text((r) => F.pctS(r.p));
+    K.axis(f.svg.append('g').attr('transform', `translate(0,${f.H - f.m.b})`)
+      .call(d3.axisBottom(x).tickSize(0)));
+    K.axis(f.svg.append('g').attr('transform', `translate(${f.m.l},0)`)
+      .call(d3.axisLeft(y).ticks(5).tickFormat(F.usdAxis).tickSize(0)))
+      .select('.domain').remove();
+  };
+
+  /* ---- biggest productivity gaps ---- */
+  draw.gap = function () {
+    const el = document.getElementById('ch-gap');
+    if (!el || el.offsetParent === null) return;
+    if (K.err('stores')) return K.failLine(el, 280);
+    const rows = K.rows('stores');
+    const f = K.frame(el, 300, { b: 30, t: 10, l: 56 });
+    if (!rows.length) return;
+    const d = rows.filter((r) => +r.gap_to_benchmark > 0)
+      .sort((a, b) => +b.gap_to_benchmark - +a.gap_to_benchmark).slice(0, 12)
+      .map((r) => ({ k: 'Store ' + r.store, v: +r.gap_to_benchmark, t: r.type, rps: +r.rev_per_sqft, sz: +r.size }));
+    const x = d3.scaleLinear([0, d3.max(d, (r) => r.v) * 1.04], [f.m.l, f.W - f.m.r]);
+    const y = d3.scaleBand().domain(d.map((r) => r.k))
+      .range([f.m.t, f.H - f.m.b]).padding(0.26);
+    f.m.l = K.tickW(f.svg, d.map((r) => r.k), (v) => v) + 10;
+    x.range([f.m.l, f.W - f.m.r]);
+    const tip = K.tip(el);
+    f.svg.append('g').selectAll('rect').data(d).join('rect')
+      .attr('x', f.m.l).attr('y', (r) => y(r.k))
+      .attr('width', (r) => Math.max(1, x(r.v) - f.m.l))
+      .attr('height', Math.min(18, y.bandwidth())).attr('rx', 4)
+      .attr('fill', dash.colors[0])
+      .on('mousemove', function (e, r) {
+        const [mx, my] = d3.pointer(e, f.svg.node());
+        tip.show(r.k + ' (Type ' + r.t + ')', [
+          { name: 'Revenue at benchmark', value: F.usd(r.v), color: dash.colors[0] },
+          { name: 'Current $/sq ft', value: '$' + d3.format(',.0f')(r.rps) },
+          { name: 'Floor space', value: F.num(r.sz) + ' sq ft' },
+        ], mx, my);
+      })
+      .on('mouseleave', tip.hide);
+    K.axis(f.svg.append('g').attr('transform', `translate(0,${f.H - f.m.b})`)
+      .call(d3.axisBottom(x).ticks(Math.max(3, Math.floor(f.W / 110)))
+        .tickFormat(F.usdAxis)));
+    K.axis(f.svg.append('g').attr('transform', `translate(${f.m.l},0)`)
+      .call(d3.axisLeft(y).tickSize(0))).select('.domain').remove();
+  };
+
+  document.getElementById('dept-q').addEventListener('input', () => draw.deptTable());
+  K.sorter(document.getElementById('t-dept'), deptSort, () => draw.deptTable());
+
+  return draw;
+}());
+</script>
+<script>
+/* ----------------------------------------------- stores + statistics */
+window.D2 = (function () {
+  const K = window.W, F = K.F;
+  const draw = {};
+  const enc = (v) => encodeURIComponent(String(v));
+  const CLU = {};   /* archetype -> colour, assigned on first draw */
+
+  const cluColor = (name) => {
+    if (!(name in CLU)) CLU[name] = dash.colors[Object.keys(CLU).length % 8];
+    return CLU[name];
+  };
+
+  /* ---- store scorecard ---- */
+  const stSort = { key: 'total_rev', dir: 'desc' };
+  const stNum = new Set(['store', 'size', 'total_rev', 'avg_weekly',
+    'rev_per_sqft', 'cv', 'hol_lift', 'growth_pct', 'unemployment',
+    'gap_to_benchmark']);
+
+  const fmtPick = K.chips('fmt', (v) => {
+    dash.setParams({ format: v });
+    draw.storeTable(); draw.pca(); redrawViz();
+  });
+
+  const redrawViz = () => {
+    if (!window.D4) return;
+    ['sparks', 'bubble', 'vol'].forEach((fn) => {
+      try { window.D4[fn](); } catch (e) { console.error(fn, e); }
+    });
+  };
+
+  draw.storeTable = function () {
+    const t = document.getElementById('t-store');
+    if (!t) return;
+    const all = K.rows('stores');
+    if (!all.length) return;
+    const p = dash.params();
+    let rows = all;
+    if (p.format && p.format !== 'all') rows = rows.filter((r) => r.type === p.format);
+    const q = (document.getElementById('st-q').value || '').trim();
+    if (q) rows = rows.filter((r) => String(r.store).includes(q));
+    const cnt = document.getElementById('st-count');
+    if (cnt) cnt.textContent = rows.length + ' of ' + all.length + ' stores';
+    const maxRev = d3.max(all, (r) => +r.total_rev);
+    K.fillTable(t, K.sortRows(rows, stSort, stNum), [
+      { get: (r) => r.store },
+      { get: (r) => r.type },
+      { get: (r) => r.cluster },
+      { get: (r) => F.num(+r.size) },
+      { get: (r) => ({ bar: +r.total_rev / maxRev, text: F.usd(+r.total_rev), color: cluColor(r.cluster) }) },
+      { get: (r) => F.usd(+r.avg_weekly) },
+      { get: (r) => '$' + d3.format(',.0f')(+r.rev_per_sqft) },
+      { get: (r) => F.ratio(+r.cv) },
+      { get: (r) => F.pctS(+r.hol_lift) },
+      { get: (r) => (r.growth_pct === '' ? null : F.pctS(+r.growth_pct)), cls: (r) => (r.growth_pct !== '' && +r.growth_pct >= 0 ? 'wsi-pos' : 'wsi-neg') },
+      { get: (r) => F.pct(+r.unemployment) },
+      { get: (r) => (+r.gap_to_benchmark > 0 ? F.usd(+r.gap_to_benchmark) : '—') },
+    ], (r) => r.store);
+    const sel = String(dash.params().store ?? '');
+    t.querySelectorAll('tbody tr').forEach((tr) => {
+      if (sel && tr.dataset.key === sel) tr.dataset.on = '1';
+      else delete tr.dataset.on;
+    });
+  };
+
+  /* ---- cluster map ---- */
+  draw.pca = function () {
+    const el = document.getElementById('ch-pca');
+    if (!el || el.offsetParent === null) return;
+    if (K.err('stores')) return K.failLine(el, 300);
+    const rows = K.rows('stores');
+    const f = K.frame(el, 320, { b: 34, t: 14, l: 44 });
+    if (!rows.length) return;
+    const d = rows.map((r) => ({
+      s: r.store, x: +r.pca_x, y: +r.pca_y, c: r.cluster, t: r.type,
+      rev: +r.avg_weekly, sz: +r.size, rps: +r.rev_per_sqft,
+    }));
+    const p = dash.params();
+    const x = d3.scaleLinear(d3.extent(d, (r) => r.x), [0, 1]).nice();
+    const y = d3.scaleLinear(d3.extent(d, (r) => r.y), [0, 1]).nice();
+    f.m.l = K.tickW(f.svg, y.ticks(5), d3.format('.1f')) + 10;
+    x.range([f.m.l, f.W - f.m.r]);
+    y.range([f.H - f.m.b, f.m.t]);
+    K.grid(f.svg, y, f.m.l, f.W - f.m.r, 5);
+    const r = d3.scaleSqrt(d3.extent(d, (q) => q.sz), [4, 11]);
+    const tip = K.tip(el);
+    const dim = (q) => (p.format && p.format !== 'all' && q.t !== p.format);
+    f.svg.append('g').selectAll('circle').data(d).join('circle')
+      .attr('cx', (q) => x(q.x)).attr('cy', (q) => y(q.y))
+      .attr('r', (q) => r(q.sz))
+      .attr('fill', (q) => (dim(q) ? 'var(--cds-chart-muted)' : cluColor(q.c)))
+      .attr('fill-opacity', (q) => (dim(q) ? 0.25 : 0.72))
+      .attr('stroke', (q) => (String(p.store) === String(q.s)
+        ? 'var(--color-fg)' : 'none'))
+      .attr('stroke-width', 2)
+      .style('cursor', 'pointer')
+      .on('mousemove', function (e, q) {
+        const [mx, my] = d3.pointer(e, f.svg.node());
+        tip.show('Store ' + q.s, [
+          { name: q.c, value: 'Type ' + q.t, color: cluColor(q.c) },
+          { name: 'Average week', value: F.usd(q.rev) },
+          { name: 'Floor space', value: F.num(q.sz) + ' sq ft' },
+          { name: 'Revenue per sq ft', value: '$' + d3.format(',.0f')(q.rps) },
+        ], mx, my);
+      })
+      .on('mouseleave', tip.hide)
+      .on('click', (e, q) => {
+        dash.setParams({ store: String(p.store) === String(q.s) ? null : q.s });
+        draw.pca(); draw.storeTable(); redrawViz();
+      });
+    K.axis(f.svg.append('g').attr('transform', `translate(0,${f.H - f.m.b})`)
+      .call(d3.axisBottom(x).ticks(Math.max(3, Math.floor(f.W / 90)))
+        .tickFormat(d3.format('.1f'))));
+    K.axis(f.svg.append('g').attr('transform', `translate(${f.m.l},0)`)
+      .call(d3.axisLeft(y).ticks(5).tickFormat(d3.format('.1f')).tickSize(0)))
+      .select('.domain').remove();
+    /* legend, labelled in place of a key */
+    const names = Array.from(new Set(d.map((q) => q.c)));
+    const lg = f.svg.append('g');
+    let lx = f.m.l;
+    names.forEach((nm) => {
+      const gg = lg.append('g').attr('transform', `translate(${lx},${f.m.t})`);
+      gg.append('circle').attr('r', 4).attr('cx', 4).attr('cy', -2)
+        .attr('fill', cluColor(nm)).attr('fill-opacity', 0.72);
+      const tx = gg.append('text').attr('x', 13).attr('y', 2)
+        .attr('font-size', 11).attr('fill', 'var(--color-fg-muted)').text(nm);
+      lx += 13 + tx.node().getComputedTextLength() + 14;
+    });
+    if (lx > f.W - f.m.r) lg.remove();
+  };
+
+  draw.cluTable = function () {
+    const t = document.getElementById('t-clu');
+    if (!t) return;
+    const rows = K.rows('segments').filter((r) => r.kind === 'cluster');
+    if (!rows.length) return;
+    K.fillTable(t, rows, [
+      { get: (r) => r.group },
+      { get: (r) => r.stores },
+      { get: (r) => F.usd(+r.avg_weekly_per_store) },
+      { get: (r) => F.num(+r.avg_size) },
+      { get: (r) => '$' + d3.format(',.0f')(+r.rev_per_sqft) },
+      { get: (r) => F.ratio(+r.cv) },
+      { get: (r) => (r.hol_lift === '' ? null : F.pctS(+r.hol_lift)) },
+      { get: (r) => (r.unemployment === '' ? null : F.pct(+r.unemployment)) },
+      { get: (r) => F.pct(+r.rev_share_pct) },
+    ], (r) => r.group);
+  };
+
+  /* ---- elbow + silhouette ---- */
+  draw.elbow = function () {
+    const el = document.getElementById('ch-elbow');
+    if (!el || el.offsetParent === null) return;
+    if (K.err('curves')) return K.failLine(el, 300);
+    const rows = K.rows('curves').filter((r) => r.series === 'elbow');
+    const f = K.frame(el, 320, { b: 34, t: 16, r: 42 });
+    if (!rows.length) return;
+    const d = rows.map((r) => ({ k: +r.x, i: +r.y, s: K.n(r.y2) }))
+      .sort((a, b) => a.k - b.k);
+    const y = d3.scaleLinear([0, d3.max(d, (r) => r.i) * 1.05], [0, 1]);
+    f.m.l = K.tickW(f.svg, y.ticks(5), d3.format('.0f')) + 10;
+    y.range([f.H - f.m.b, f.m.t]);
+    const x = d3.scaleLinear(d3.extent(d, (r) => r.k), [f.m.l, f.W - f.m.r]);
+    const sv = d.filter((r) => r.s !== null);
+    const y2 = d3.scaleLinear([0, d3.max(sv, (r) => r.s) * 1.3], [f.H - f.m.b, f.m.t]);
+    K.grid(f.svg, y, f.m.l, f.W - f.m.r, 5);
+    f.svg.append('path').attr('fill', 'none').attr('stroke', dash.colors[0])
+      .attr('stroke-width', 2).attr('stroke-linecap', 'round')
+      .attr('d', d3.line().x((r) => x(r.k)).y((r) => y(r.i))(d));
+    f.svg.append('path').attr('fill', 'none').attr('stroke', dash.colors[3])
+      .attr('stroke-width', 2).attr('stroke-linecap', 'round')
+      .attr('d', d3.line().x((r) => x(r.k)).y((r) => y2(r.s))(sv));
+    const chosen = d.find((r) => r.k === 4);
+    if (chosen) {
+      f.svg.append('line').attr('x1', x(4)).attr('x2', x(4))
+        .attr('y1', f.m.t).attr('y2', f.H - f.m.b)
+        .attr('stroke', 'var(--cds-chart-reference)').attr('stroke-dasharray', '3 3');
+      f.svg.append('text').attr('x', x(4) + 5).attr('y', f.m.t + 10)
+        .attr('font-size', 11).attr('fill', 'var(--color-fg-muted)').text('k = 4');
+    }
+    const tip = K.tip(el);
+    f.svg.append('g').selectAll('circle').data(d).join('circle')
+      .attr('cx', (r) => x(r.k)).attr('cy', (r) => y(r.i)).attr('r', 3.5)
+      .attr('fill', dash.colors[0])
+      .on('mousemove', function (e, r) {
+        const [mx, my] = d3.pointer(e, f.svg.node());
+        const lines = [{ name: 'Inertia', value: d3.format(',.0f')(r.i), color: dash.colors[0] }];
+        if (r.s !== null) lines.push({ name: 'Silhouette', value: F.ratio(r.s), color: dash.colors[3] });
+        tip.show('k = ' + r.k, lines, mx, my);
+      })
+      .on('mouseleave', tip.hide);
+    K.axis(f.svg.append('g').attr('transform', `translate(0,${f.H - f.m.b})`)
+      .call(d3.axisBottom(x).ticks(d.length).tickFormat(d3.format('d'))));
+    K.axis(f.svg.append('g').attr('transform', `translate(${f.m.l},0)`)
+      .call(d3.axisLeft(y).ticks(5).tickFormat(d3.format('.2~s')).tickSize(0)))
+      .select('.domain').remove();
+    K.axis(f.svg.append('g').attr('transform', `translate(${f.W - f.m.r},0)`)
+      .call(d3.axisRight(y2).ticks(4).tickFormat(d3.format('.2f')).tickSize(0)))
+      .select('.domain').remove();
+  };
+
+  /* ---- boxplot by format ---- */
+  draw.box = function () {
+    const el = document.getElementById('ch-box');
+    if (!el || el.offsetParent === null) return;
+    if (K.err('segments')) return K.failLine(el, 260);
+    const rows = K.rows('segments')
+      .filter((r) => r.kind === 'format' && r.box_median !== '');
+    const f = K.frame(el, 270, { b: 34, t: 16 });
+    if (!rows.length) return;
+    const d = rows.map((r) => ({
+      k: r.group, lo: +r.box_lo, q1: +r.box_q1, md: +r.box_median,
+      q3: +r.box_q3, hi: +r.box_hi,
+    }));
+    const y = d3.scaleLinear([0, d3.max(d, (r) => r.hi) * 1.06], [0, 1]);
+    f.m.l = K.tickW(f.svg, y.ticks(6), F.usdAxis) + 10;
+    y.range([f.H - f.m.b, f.m.t]);
+    const x = d3.scaleBand().domain(d.map((r) => r.k))
+      .range([f.m.l, f.W - f.m.r]).padding(0.42);
+    K.grid(f.svg, y, f.m.l, f.W - f.m.r, 6);
+    const tip = K.tip(el);
+    const g = f.svg.append('g');
+    d.forEach((r, i) => {
+      const cx = x(r.k) + x.bandwidth() / 2;
+      const bw = Math.min(70, x.bandwidth());
+      const col = dash.colors[i];
+      g.append('line').attr('x1', cx).attr('x2', cx)
+        .attr('y1', y(r.lo)).attr('y2', y(r.hi))
+        .attr('stroke', 'var(--cds-chart-axis)');
+      [r.lo, r.hi].forEach((v) => {
+        g.append('line').attr('x1', cx - bw / 4).attr('x2', cx + bw / 4)
+          .attr('y1', y(v)).attr('y2', y(v)).attr('stroke', 'var(--cds-chart-axis)');
+      });
+      g.append('rect').attr('x', cx - bw / 2).attr('width', bw)
+        .attr('y', y(r.q3)).attr('height', Math.max(1, y(r.q1) - y(r.q3)))
+        .attr('rx', 3).attr('fill', col).attr('fill-opacity', 0.35)
+        .attr('stroke', col)
+        .on('mousemove', function (e) {
+          const [mx, my] = d3.pointer(e, f.svg.node());
+          tip.show(r.k, [
+            { name: 'Upper fence', value: F.usd(r.hi) },
+            { name: 'Q3', value: F.usd(r.q3) },
+            { name: 'Median', value: F.usd(r.md), color: col },
+            { name: 'Q1', value: F.usd(r.q1) },
+            { name: 'Lower fence', value: F.usd(r.lo) },
+          ], mx, my);
+        })
+        .on('mouseleave', tip.hide);
+      g.append('line').attr('x1', cx - bw / 2).attr('x2', cx + bw / 2)
+        .attr('y1', y(r.md)).attr('y2', y(r.md))
+        .attr('stroke', col).attr('stroke-width', 2.5);
+    });
+    K.axis(f.svg.append('g').attr('transform', `translate(0,${f.H - f.m.b})`)
+      .call(d3.axisBottom(x).tickSize(0)));
+    K.axis(f.svg.append('g').attr('transform', `translate(${f.m.l},0)`)
+      .call(d3.axisLeft(y).ticks(6).tickFormat(F.usdAxis).tickSize(0)))
+      .select('.domain').remove();
+  };
+
+  /* ---- generic bar/line chart over one curve series ---- */
+  function curveChart(elId, series, opt) {
+    const el = document.getElementById(elId);
+    if (!el || el.offsetParent === null) return;
+    if (K.err('curves')) return K.failLine(el, opt.h - 20);
+    const rows = K.rows('curves').filter((r) => r.series === series);
+    const f = K.frame(el, opt.h, opt.m || { b: 34, t: 16 });
+    if (!rows.length) return;
+    const d = rows.map((r) => ({ x: +r.x, y: +r.y })).sort((a, b) => a.x - b.x);
+    const y = d3.scaleLinear([0, d3.max(d, (r) => r.y) * 1.06], [0, 1]);
+    f.m.l = K.tickW(f.svg, y.ticks(5), opt.fy) + 10;
+    y.range([f.H - f.m.b, f.m.t]);
+    const x = d3.scaleLinear(d3.extent(d, (r) => r.x), [f.m.l, f.W - f.m.r]);
+    K.grid(f.svg, y, f.m.l, f.W - f.m.r, 5);
+    const g = f.svg.append('g');
+    if (opt.kind === 'bar') {
+      const bw = Math.max(1, (f.W - f.m.l - f.m.r) / d.length - 1);
+      g.selectAll('rect').data(d).join('rect')
+        .attr('x', (r) => x(r.x)).attr('width', bw)
+        .attr('y', (r) => y(r.y)).attr('height', (r) => Math.max(0, y(0) - y(r.y)))
+        .attr('fill', dash.colors[0]).attr('fill-opacity', 0.85);
+    } else {
+      g.append('path').attr('fill', 'none').attr('stroke', dash.colors[0])
+        .attr('stroke-width', 2).attr('stroke-linecap', 'round')
+        .attr('d', d3.line().x((r) => x(r.x)).y((r) => y(r.y))(d));
+    }
+    if (opt.ref !== undefined && opt.ref !== null && isFinite(opt.ref)) {
+      f.svg.append('line').attr('x1', x(opt.ref)).attr('x2', x(opt.ref))
+        .attr('y1', f.m.t).attr('y2', f.H - f.m.b)
+        .attr('stroke', 'var(--cds-chart-reference)').attr('stroke-dasharray', '4 3');
+      f.svg.append('text').attr('x', x(opt.ref) + 5).attr('y', f.m.t + 10)
+        .attr('font-size', 11).attr('fill', 'var(--color-fg-muted)')
+        .text(opt.refLabel || '');
+    }
+    const tip = K.tip(el);
+    f.svg.append('rect').attr('x', f.m.l).attr('y', f.m.t)
+      .attr('width', Math.max(1, f.W - f.m.l - f.m.r))
+      .attr('height', Math.max(1, f.H - f.m.t - f.m.b)).attr('fill', 'transparent')
+      .on('mousemove', function (e) {
+        const [mx, my] = d3.pointer(e, this);
+        const xv = x.invert(mx + f.m.l);
+        const i = d3.leastIndex(d, (a, b) => Math.abs(a.x - xv) - Math.abs(b.x - xv));
+        const r = d[i];
+        tip.show(opt.fx(r.x), [{ name: opt.yName, value: opt.fyTip(r.y), color: dash.colors[0] }],
+          x(r.x), y(r.y));
+      })
+      .on('mouseleave', tip.hide);
+    K.axis(f.svg.append('g').attr('transform', `translate(0,${f.H - f.m.b})`)
+      .call(d3.axisBottom(x).ticks(Math.max(3, Math.floor(f.W / 90))).tickFormat(opt.fx)));
+    K.axis(f.svg.append('g').attr('transform', `translate(${f.m.l},0)`)
+      .call(d3.axisLeft(y).ticks(5).tickFormat(opt.fy).tickSize(0)))
+      .select('.domain').remove();
+  }
+
+  draw.hist = function () {
+    const fence = K.rows('kpis').find((r) => r.metric === 'e1_fence_hi');
+    curveChart('ch-hist', 'sales_hist', {
+      h: 280, kind: 'bar', yName: 'Records',
+      fx: (v) => F.usdAxis(v), fy: (v) => d3.format('.2~s')(v),
+      fyTip: (v) => F.num(v) + ' records',
+      ref: fence ? +fence.value : null, refLabel: 'upper fence',
+    });
+  };
+
+  draw.clt = function () {
+    curveChart('ch-clt', 'clt_hist', {
+      h: 220, kind: 'bar', yName: 'Samples',
+      fx: (v) => F.usdAxis(v), fy: (v) => d3.format('d')(v),
+      fyTip: (v) => F.num(v) + ' samples',
+    });
+  };
+
+  /* ---- density / cumulative ---- */
+  let pdView = 'pdf';
+  K.chips('pd', (v) => { pdView = v; draw.pdf(); });
+  draw.pdf = function () {
+    const el = document.getElementById('ch-pdf');
+    if (!el || el.offsetParent === null) return;
+    if (K.err('curves')) return K.failLine(el, 240);
+    const rows = K.rows('curves').filter((r) => r.series === pdView);
+    const f = K.frame(el, 260, { b: 34, t: 16 });
+    if (!rows.length) return;
+    const d = rows.map((r) => ({ x: +r.x, y: +r.y })).sort((a, b) => a.x - b.x);
+    const fy = pdView === 'cdf' ? (v) => d3.format('.0%')(v) : (v) => d3.format('.1~e')(v);
+    const y = d3.scaleLinear([0, d3.max(d, (r) => r.y) * 1.06], [0, 1]);
+    f.m.l = K.tickW(f.svg, y.ticks(5), fy) + 10;
+    y.range([f.H - f.m.b, f.m.t]);
+    const x = d3.scaleLinear(d3.extent(d, (r) => r.x), [f.m.l, f.W - f.m.r]);
+    K.grid(f.svg, y, f.m.l, f.W - f.m.r, 5);
+    const gid = 'wsi-g-pd';
+    f.svg.select('defs').remove();
+    const lg = f.svg.append('defs').append('linearGradient')
+      .attr('id', gid).attr('x1', 0).attr('y1', 0).attr('x2', 0).attr('y2', 1);
+    [[0, .26], [.25, .16], [.5, .08], [.75, .03], [1, 0]].forEach(([o, op]) => {
+      lg.append('stop').attr('offset', o).attr('stop-opacity', op)
+        .attr('style', `stop-color: ${dash.colors[0]}`);
+    });
+    f.svg.append('path').attr('fill', `url(#${gid})`)
+      .attr('d', d3.area().x((r) => x(r.x)).y0(y(0)).y1((r) => y(r.y))(d));
+    f.svg.append('path').attr('fill', 'none').attr('stroke', dash.colors[0])
+      .attr('stroke-width', 2)
+      .attr('d', d3.line().x((r) => x(r.x)).y((r) => y(r.y))(d));
+    const tip = K.tip(el);
+    f.svg.append('rect').attr('x', f.m.l).attr('y', f.m.t)
+      .attr('width', Math.max(1, f.W - f.m.l - f.m.r))
+      .attr('height', Math.max(1, f.H - f.m.t - f.m.b)).attr('fill', 'transparent')
+      .on('mousemove', function (e) {
+        const [mx] = d3.pointer(e, this);
+        const xv = x.invert(mx + f.m.l);
+        const i = d3.leastIndex(d, (a, b) => Math.abs(a.x - xv) - Math.abs(b.x - xv));
+        const r = d[i];
+        tip.show(F.usdFull(r.x), [{
+          name: pdView === 'cdf' ? 'Share at or below' : 'Density',
+          value: pdView === 'cdf' ? d3.format('.1%')(r.y) : d3.format('.2~e')(r.y),
+          color: dash.colors[0],
+        }], x(r.x), y(r.y));
+      })
+      .on('mouseleave', tip.hide);
+    K.axis(f.svg.append('g').attr('transform', `translate(0,${f.H - f.m.b})`)
+      .call(d3.axisBottom(x).ticks(Math.max(3, Math.floor(f.W / 90))).tickFormat(F.usdAxis)));
+    K.axis(f.svg.append('g').attr('transform', `translate(${f.m.l},0)`)
+      .call(d3.axisLeft(y).ticks(5).tickFormat(fy).tickSize(0)))
+      .select('.domain').remove();
+  };
+
+  /* ---- density overlay: empirical vs normal vs log-normal ---- */
+  draw.overlay = function () {
+    const el = document.getElementById('ch-ov');
+    if (!el || el.offsetParent === null) return;
+    if (K.err('curves')) return K.failLine(el, 260);
+    const all = K.rows('curves');
+    const pick = (s) => all.filter((r) => r.series === s)
+      .map((r) => ({ x: +r.x, y: +r.y })).sort((a, b) => a.x - b.x);
+    const sets = [
+      { name: 'Observed', d: pick('empirical_density'), c: dash.colors[0], w: 2 },
+      { name: 'Log-normal fit', d: pick('lognormal_density'), c: dash.colors[3], w: 1.75 },
+      { name: 'Normal fit', d: pick('normal_density'), c: 'var(--cds-chart-muted)', w: 1.75 },
+    ].filter((s) => s.d.length);
+    const f = K.frame(el, 280, { b: 34, t: 26 });
+    if (!sets.length) return;
+    const ymax = d3.max(sets, (s) => d3.max(s.d, (r) => r.y));
+    const y = d3.scaleLinear([0, ymax * 1.08], [0, 1]);
+    const fy = (v) => d3.format('.1~e')(v);
+    f.m.l = K.tickW(f.svg, y.ticks(5), fy) + 10;
+    y.range([f.H - f.m.b, f.m.t]);
+    const x = d3.scaleLinear(d3.extent(sets[0].d, (r) => r.x), [f.m.l, f.W - f.m.r]);
+    K.grid(f.svg, y, f.m.l, f.W - f.m.r, 5);
+    sets.forEach((s) => {
+      f.svg.append('path').attr('fill', 'none').attr('stroke', s.c)
+        .attr('stroke-width', s.w).attr('stroke-linecap', 'round')
+        .attr('d', d3.line().x((r) => x(r.x)).y((r) => y(Math.min(r.y, ymax * 1.08)))(s.d));
+    });
+    let lx = f.m.l;
+    const lg = f.svg.append('g');
+    sets.forEach((s) => {
+      const gg = lg.append('g').attr('transform', `translate(${lx},${12})`);
+      gg.append('line').attr('x1', 0).attr('x2', 12).attr('y1', 0).attr('y2', 0)
+        .attr('stroke', s.c).attr('stroke-width', 2);
+      const tx = gg.append('text').attr('x', 17).attr('y', 3.5)
+        .attr('font-size', 11).attr('fill', 'var(--color-fg-muted)').text(s.name);
+      lx += 17 + tx.node().getComputedTextLength() + 14;
+    });
+    if (lx > f.W - f.m.r) lg.remove();
+    K.axis(f.svg.append('g').attr('transform', `translate(0,${f.H - f.m.b})`)
+      .call(d3.axisBottom(x).ticks(Math.max(3, Math.floor(f.W / 90))).tickFormat(F.usdAxis)));
+    K.axis(f.svg.append('g').attr('transform', `translate(${f.m.l},0)`)
+      .call(d3.axisLeft(y).ticks(5).tickFormat(fy).tickSize(0)))
+      .select('.domain').remove();
+  };
+
+  /* ---- scatter helper: qq and predicted-vs-actual ---- */
+  function scatter(elId, series, opt) {
+    const el = document.getElementById(elId);
+    if (!el || el.offsetParent === null) return;
+    if (K.err('curves')) return K.failLine(el, opt.h - 20);
+    const rows = K.rows('curves').filter((r) => r.series === series);
+    const f = K.frame(el, opt.h, { b: 34, t: 14 });
+    if (!rows.length) return;
+    const d = rows.map((r) => ({ x: +r.x, y: +r.y }));
+    const lo = Math.min(d3.min(d, (r) => r.x), d3.min(d, (r) => r.y));
+    const hi = Math.max(d3.max(d, (r) => r.x), d3.max(d, (r) => r.y));
+    const y = d3.scaleLinear([lo, hi], [0, 1]).nice();
+    f.m.l = K.tickW(f.svg, y.ticks(5), opt.f) + 10;
+    y.range([f.H - f.m.b, f.m.t]);
+    const x = d3.scaleLinear([lo, hi], [f.m.l, f.W - f.m.r]).nice();
+    K.grid(f.svg, y, f.m.l, f.W - f.m.r, 5);
+    f.svg.append('line').attr('x1', x(lo)).attr('y1', y(lo))
+      .attr('x2', x(hi)).attr('y2', y(hi))
+      .attr('stroke', 'var(--cds-chart-reference)').attr('stroke-dasharray', '4 3');
+    const tip = K.tip(el);
+    f.svg.append('g').selectAll('circle').data(d).join('circle')
+      .attr('cx', (r) => x(r.x)).attr('cy', (r) => y(r.y)).attr('r', 2.4)
+      .attr('fill', dash.colors[0]).attr('fill-opacity', 0.45)
+      .on('mousemove', function (e, r) {
+        const [mx, my] = d3.pointer(e, f.svg.node());
+        tip.show(null, [
+          { name: opt.xName, value: opt.f(r.x) },
+          { name: opt.yName, value: opt.f(r.y), color: dash.colors[0] },
+        ], mx, my);
+      })
+      .on('mouseleave', tip.hide);
+    K.axis(f.svg.append('g').attr('transform', `translate(0,${f.H - f.m.b})`)
+      .call(d3.axisBottom(x).ticks(Math.max(3, Math.floor(f.W / 100))).tickFormat(opt.f)));
+    K.axis(f.svg.append('g').attr('transform', `translate(${f.m.l},0)`)
+      .call(d3.axisLeft(y).ticks(5).tickFormat(opt.f).tickSize(0)))
+      .select('.domain').remove();
+  }
+
+  draw.fit = function () {
+    scatter('ch-fit', 'fit_scatter', {
+      h: 300, f: F.usdAxis, xName: 'Predicted', yName: 'Actual',
+    });
+  };
+  draw.qq = function () {
+    scatter('ch-qq', 'qq', {
+      h: 280, f: F.usdAxis, xName: 'Normal quantile', yName: 'Observed quantile',
+    });
+  };
+
+  /* ---- coefficients and elasticities ---- */
+  draw.coef = function () {
+    const t = document.getElementById('t-coef');
+    if (!t) return;
+    const rows = K.rows('model').filter((r) => r.model === 'store_week');
+    if (!rows.length) return;
+    const NAME = {
+      Size: 'Floor space (per sq ft)', Temperature: 'Temperature (per °F)',
+      Fuel_Price: 'Fuel price (per $)', CPI: 'CPI (per point)',
+      Unemployment: 'Unemployment (per point)', IsHolidayNum: 'Flagged holiday week',
+      TotalMarkDown: 'Markdown (per $)',
+    };
+    K.fillTable(t, rows.slice().sort((a, b) => Math.abs(+b.coef) - Math.abs(+a.coef)), [
+      { get: (r) => NAME[r.feature] || r.feature },
+      { get: (r) => F.usd(+r.coef), cls: (r) => (+r.coef >= 0 ? 'wsi-pos' : 'wsi-neg') },
+    ], (r) => enc(r.model) + ',' + enc(r.feature));
+  };
+
+  draw.elas = function () {
+    const el = document.getElementById('ch-elas');
+    if (!el || el.offsetParent === null) return;
+    if (K.err('model')) return K.failLine(el, 220);
+    const rows = K.rows('model').filter((r) => r.model === 'elasticity');
+    const f = K.frame(el, 230, { b: 34, t: 14, l: 90 });
+    if (!rows.length) return;
+    const d = rows.map((r) => ({ k: r.feature.replace('_', ' '), v: +r.coef, p: +r.r2 }))
+      .sort((a, b) => Math.abs(b.v) - Math.abs(a.v));
+    const ex = d3.max(d, (r) => Math.abs(r.v)) * 1.2;
+    const x = d3.scaleLinear([-ex, ex], [0, 1]);
+    f.m.l = K.tickW(f.svg, d.map((r) => r.k), (v) => v) + 10;
+    x.range([f.m.l, f.W - f.m.r]);
+    const y = d3.scaleBand().domain(d.map((r) => r.k))
+      .range([f.m.t, f.H - f.m.b]).padding(0.3);
+    f.svg.append('line').attr('x1', x(0)).attr('x2', x(0))
+      .attr('y1', f.m.t).attr('y2', f.H - f.m.b).attr('stroke', 'var(--cds-chart-axis)');
+    const tip = K.tip(el);
+    f.svg.append('g').selectAll('rect').data(d).join('rect')
+      .attr('x', (r) => (r.v >= 0 ? x(0) : x(r.v)))
+      .attr('width', (r) => Math.max(1, Math.abs(x(r.v) - x(0))))
+      .attr('y', (r) => y(r.k)).attr('height', Math.min(18, y.bandwidth()))
+      .attr('rx', 3)
+      .attr('fill', (r) => (r.v >= 0 ? dash.colors[0] : 'var(--cds-chart-status-critical)'))
+      .on('mousemove', function (e, r) {
+        const [mx, my] = d3.pointer(e, f.svg.node());
+        tip.show(r.k, [
+          { name: 'Per 1 sd move', value: F.usd(r.v) },
+          { name: 'As a share of a week', value: F.pctS(r.p) },
+        ], mx, my);
+      })
+      .on('mouseleave', tip.hide);
+    K.axis(f.svg.append('g').attr('transform', `translate(0,${f.H - f.m.b})`)
+      .call(d3.axisBottom(x).ticks(Math.max(3, Math.floor(f.W / 110))).tickFormat(F.usdAxis)));
+    K.axis(f.svg.append('g').attr('transform', `translate(${f.m.l},0)`)
+      .call(d3.axisLeft(y).tickSize(0))).select('.domain').remove();
+  };
+
+  /* ---- tables fed by simple sources ---- */
+  draw.sampTable = function () {
+    const t = document.getElementById('t-samp');
+    if (!t) return;
+    const rows = K.rows('sampling');
+    if (!rows.length) return;
+    K.fillTable(t, rows, [
+      { get: (r) => r.label },
+      { get: (r) => r.method },
+      { get: (r) => F.usd(+r.mean) },
+      { get: (r) => (r.se === '' ? null : F.usd(+r.se)) },
+      { get: (r) => F.pct(+r.err_pct) },
+    ], (r) => r.label);
+  };
+
+  draw.excTable = function () {
+    const t = document.getElementById('t-exc');
+    if (!t) return;
+    const rows = K.rows('curves').filter((r) => r.series === 'exceedance');
+    if (!rows.length) return;
+    K.fillTable(t, rows.slice().sort((a, b) => +a.x - +b.x), [
+      { get: (r) => F.usdFull(+r.x) },
+      { get: (r) => d3.format('.3f')(+r.y) },
+      { get: (r) => F.pct(+r.y2) },
+    ], (r) => r.id);
+  };
+
+  draw.fitsTable = function () {
+    const t = document.getElementById('t-fits');
+    if (!t) return;
+    const rows = K.rows('dist_fits');
+    if (!rows.length) return;
+    K.fillTable(t, rows.slice().sort((a, b) => +a.ks_stat - +b.ks_stat), [
+      { get: (r) => r.name },
+      { get: (r) => r.params, wrap: true },
+      { get: (r) => d3.format('.4f')(+r.ks_stat) },
+      { get: (r) => F.p(+r.ks_p) },
+    ], (r) => r.name);
+  };
+
+  /* ---- correlation heatmap ---- */
+  let corrLevel = 'store_week';
+  K.chips('cl', (v) => { corrLevel = v; draw.corr(); });
+  draw.corr = function () {
+    const el = document.getElementById('ch-corr');
+    if (!el || el.offsetParent === null) return;
+    if (K.err('correlation')) return K.failLine(el, 300);
+    const rows = K.rows('correlation').filter((r) => r.level === corrLevel);
+    if (!rows.length) { K.frame(el, 300); return; }
+    const vars = Array.from(new Set(rows.map((r) => r.var1)));
+    const SHORT = {
+      Weekly_Sales: 'Sales', Size: 'Size', Temperature: 'Temp',
+      Fuel_Price: 'Fuel', CPI: 'CPI', Unemployment: 'Unemp',
+      TotalMarkDown: 'Markdown',
+    };
+    const el0 = K.frame(el, 0);
+    el0.svg.remove();
+    const Wv = Math.max(260, el.clientWidth || 320);
+    const labW = 74, labH = 56, pad = 2;
+    const cell = Math.max(18, Math.min(52, (Wv - labW - 8) / vars.length));
+    const H = labH + cell * vars.length + 6;
+    const svg = d3.select(el).append('svg')
+      .attr('width', '100%').attr('height', H)
+      .attr('viewBox', `0 0 ${Wv} ${H}`).attr('preserveAspectRatio', 'xMinYMin meet');
+    const byKey = new Map(rows.map((r) => [r.var1 + '|' + r.var2, +r.r]));
+    const tip = K.tip(el);
+    vars.forEach((a, i) => {
+      svg.append('text').attr('x', labW - 6).attr('y', labH + i * cell + cell / 2 + 3.5)
+        .attr('text-anchor', 'end').attr('font-size', 11)
+        .attr('fill', 'var(--color-fg-muted)').text(SHORT[a] || a);
+      svg.append('text')
+        .attr('transform', `translate(${labW + i * cell + cell / 2},${labH - 8}) rotate(-42)`)
+        .attr('font-size', 11).attr('fill', 'var(--color-fg-muted)')
+        .text(SHORT[a] || a);
+      vars.forEach((b, j) => {
+        const r = byKey.get(a + '|' + b);
+        if (r === undefined) return;
+        svg.append('rect')
+          .attr('x', labW + j * cell + pad / 2).attr('y', labH + i * cell + pad / 2)
+          .attr('width', cell - pad).attr('height', cell - pad).attr('rx', 3)
+          .attr('fill', r >= 0 ? dash.colors[0] : 'var(--cds-chart-status-critical)')
+          .attr('fill-opacity', Math.min(1, Math.abs(r) * 0.92 + 0.06))
+          .on('mousemove', function (e) {
+            const [mx, my] = d3.pointer(e, svg.node());
+            tip.show((SHORT[a] || a) + ' / ' + (SHORT[b] || b),
+              [{ name: 'Correlation', value: d3.format('+.3f')(r) }], mx, my);
+          })
+          .on('mouseleave', tip.hide);
+        if (cell >= 34) {
+          svg.append('text')
+            .attr('x', labW + j * cell + cell / 2)
+            .attr('y', labH + i * cell + cell / 2 + 3.5)
+            .attr('text-anchor', 'middle').attr('font-size', 10)
+            .attr('fill', Math.abs(r) > 0.55 ? 'var(--color-bg)' : 'var(--color-fg-muted)')
+            .text(d3.format('.2f')(r));
+        }
+      });
+    });
+  };
+
+  document.getElementById('st-q').addEventListener('input', () => draw.storeTable());
+  document.getElementById('st-reset').addEventListener('click', () => {
+    dash.resetParams();
+    document.getElementById('st-q').value = '';
+    document.querySelectorAll('[data-fmt]').forEach((b) =>
+      b.setAttribute('aria-pressed', b.dataset.fmt === 'all' ? 'true' : 'false'));
+    draw.storeTable(); draw.pca(); redrawViz();
+  });
+  K.sorter(document.getElementById('t-store'), stSort, () => draw.storeTable());
+  document.getElementById('t-store').addEventListener('click', (e) => {
+    const tr = e.target.closest('tr[data-key]');
+    if (!tr) return;
+    const cur = String(dash.params().store ?? '');
+    dash.setParams({ store: cur === tr.dataset.key ? null : tr.dataset.key });
+    draw.storeTable(); draw.pca(); redrawViz();
+  });
+
+  return draw;
+}());
+</script>
+<script>
+/* ------------------------------------------------------ visual layer */
+window.D4 = (function () {
+  const K = window.W, F = K.F;
+  const draw = {};
+  const MUTED = 'var(--cds-chart-muted)';
+
+  /* intensity ramp that follows the theme: one token, varying opacity */
+  const ramp = (t) => Math.min(1, 0.07 + Math.pow(Math.max(0, t), 0.62) * 0.9);
+
+  /* ---- calendar heatmap: year rows, calendar-week columns ---- */
+  draw.calendar = function () {
+    const el = document.getElementById('ch-cal');
+    if (!el || el.offsetParent === null) return;
+    if (K.err('weekly')) return K.failLine(el, 170);
+    const rows = K.rows('weekly');
+    if (!rows.length) { K.frame(el, 170); return; }
+    el.querySelectorAll('svg').forEach((s) => s.remove());
+    const d = rows.map((r) => {
+      const dt = K.parseDate(r.date);
+      return {
+        date: dt, v: +r.sales, hol: r.holiday === 'yes',
+        y: dt.getUTCFullYear(),
+        w: +d3.utcFormat('%V')(dt),
+      };
+    });
+    const years = Array.from(new Set(d.map((r) => r.y))).sort();
+    const Wv = Math.max(260, el.clientWidth || 320);
+    const labW = 34, topH = 16, gap = 1.5;
+    const cell = Math.max(5, (Wv - labW - 6) / 53);
+    const H = topH + years.length * (cell + gap) + 20;
+    const svg = d3.select(el).append('svg').attr('width', '100%')
+      .attr('height', H).attr('viewBox', `0 0 ${Wv} ${H}`)
+      .attr('preserveAspectRatio', 'xMinYMin meet');
+    const max = d3.max(d, (r) => r.v);
+    const tip = K.tip(el);
+    years.forEach((yr, i) => {
+      svg.append('text').attr('x', 0).attr('y', topH + i * (cell + gap) + cell / 2 + 3.5)
+        .attr('font-size', 11).attr('fill', 'var(--color-fg-muted)').text(yr);
+    });
+    svg.append('g').selectAll('rect').data(d).join('rect')
+      .attr('x', (r) => labW + (r.w - 1) * cell + gap / 2)
+      .attr('y', (r) => topH + years.indexOf(r.y) * (cell + gap))
+      .attr('width', Math.max(1, cell - gap)).attr('height', cell)
+      .attr('rx', Math.min(2, cell / 4))
+      .attr('fill', dash.colors[0])
+      .attr('fill-opacity', (r) => ramp(r.v / max))
+      .attr('stroke', (r) => (r.hol ? 'var(--cds-chart-status-critical)' : 'none'))
+      .attr('stroke-width', 1)
+      .on('mousemove', function (e, r) {
+        const [mx, my] = d3.pointer(e, svg.node());
+        tip.show(F.date(r.date), [
+          { name: 'Chain revenue', value: F.usdFull(r.v), color: dash.colors[0] },
+          { name: 'Calendar week', value: r.w },
+        ].concat(r.hol ? [{ name: 'Flagged holiday', value: 'yes' }] : []), mx, my);
+      })
+      .on('mouseleave', tip.hide);
+    [1, 10, 20, 30, 40, 50].forEach((w) => {
+      svg.append('text').attr('x', labW + (w - 1) * cell + cell / 2)
+        .attr('y', H - 7).attr('text-anchor', 'middle').attr('font-size', 10)
+        .attr('fill', 'var(--color-fg-muted)').text('wk ' + w);
+    });
+  };
+
+  /* ---- 45 store sparklines on one shared scale ---- */
+  draw.sparks = function () {
+    const el = document.getElementById('ch-sparks');
+    if (!el || el.offsetParent === null) return;
+    if (K.err('store_week')) return K.failLine(el, 300);
+    const rows = K.rows('store_week');
+    if (!rows.length) { K.frame(el, 300); return; }
+    el.querySelectorAll('svg').forEach((s) => s.remove());
+    const by = d3.group(rows, (r) => +r.store);
+    const stores = Array.from(by.keys()).sort((a, b) => a - b);
+    const p = dash.params();
+    const fmt = p.format && p.format !== 'all' ? p.format : null;
+    const Wv = Math.max(260, el.clientWidth || 320);
+    const cols = Wv > 860 ? 9 : Wv > 640 ? 7 : Wv > 430 ? 5 : 3;
+    const cw = Wv / cols, ch = Math.max(34, cw * 0.56);
+    const rowsN = Math.ceil(stores.length / cols);
+    const H = rowsN * ch + 4;
+    const svg = d3.select(el).append('svg').attr('width', '100%')
+      .attr('height', H).attr('viewBox', `0 0 ${Wv} ${H}`)
+      .attr('preserveAspectRatio', 'xMinYMin meet');
+    const allV = rows.map((r) => +r.revenue);
+    const ymax = d3.max(allV);
+    const dates = Array.from(new Set(rows.map((r) => r.date))).sort();
+    const x = d3.scalePoint().domain(dates).range([0, cw - 12]);
+    const tip = K.tip(el);
+    stores.forEach((s, i) => {
+      const series = by.get(s).slice()
+        .sort((a, b) => (a.date < b.date ? -1 : 1))
+        .map((r) => ({ d: r.date, v: +r.revenue, t: r.type }));
+      const type = series[0].t;
+      const gx = (i % cols) * cw + 6;
+      const gy = Math.floor(i / cols) * ch + 2;
+      const g = svg.append('g').attr('transform', `translate(${gx},${gy})`)
+        .style('cursor', 'pointer');
+      const y = d3.scaleLinear([0, ymax], [ch - 14, 12]);
+      const on = !fmt || type === fmt;
+      const sel = String(p.store) === String(s);
+      const col = on ? dash.colors[0] : MUTED;
+      g.append('path').attr('fill', col).attr('fill-opacity', on ? 0.16 : 0.07)
+        .attr('d', d3.area().x((r) => x(r.d)).y0(y(0)).y1((r) => y(r.v))(series));
+      g.append('path').attr('fill', 'none').attr('stroke', col)
+        .attr('stroke-width', sel ? 1.8 : 1).attr('stroke-opacity', on ? 1 : 0.4)
+        .attr('d', d3.line().x((r) => x(r.d)).y((r) => y(r.v))(series));
+      g.append('text').attr('x', 0).attr('y', 9).attr('font-size', 10)
+        .attr('font-weight', sel ? 600 : 400)
+        .attr('fill', on ? 'var(--color-fg)' : 'var(--color-fg-muted)')
+        .text(s + type);
+      g.append('rect').attr('width', cw - 10).attr('height', ch - 4)
+        .attr('fill', 'transparent')
+        .on('mousemove', function (e) {
+          const [mx, my] = d3.pointer(e, svg.node());
+          const peak = d3.max(series, (r) => r.v);
+          tip.show('Store ' + s + ' (Type ' + type + ')', [
+            { name: 'Average week', value: F.usd(d3.mean(series, (r) => r.v)), color: col },
+            { name: 'Best week', value: F.usd(peak) },
+            { name: 'Quietest week', value: F.usd(d3.min(series, (r) => r.v)) },
+          ], mx, my);
+        })
+        .on('mouseleave', tip.hide)
+        .on('click', () => {
+          dash.setParams({ store: sel ? null : String(s) });
+          draw.sparks();
+          if (window.D2) { window.D2.storeTable(); window.D2.pca(); }
+        });
+      if (sel) {
+        g.append('rect').attr('width', cw - 10).attr('height', ch - 4)
+          .attr('fill', 'none').attr('stroke', 'var(--color-fg)')
+          .attr('stroke-width', 1).attr('rx', 3);
+      }
+    });
+  };
+
+  /* ---- store x department heatmap ---- */
+  draw.heat = function () {
+    const el = document.getElementById('ch-heat');
+    if (!el || el.offsetParent === null) return;
+    if (K.err('store_dept')) return K.failLine(el, 320);
+    const rows = K.rows('store_dept');
+    if (!rows.length) { K.frame(el, 320); return; }
+    el.querySelectorAll('svg').forEach((s) => s.remove());
+    const stores = Array.from(new Set(rows.map((r) => +r.store))).sort((a, b) => a - b);
+    const depts = Array.from(new Set(rows.map((r) => +r.dept)))
+      .sort((a, b) => {
+        const ra = rows.find((r) => +r.dept === a), rb = rows.find((r) => +r.dept === b);
+        return +ra.dept_rank - +rb.dept_rank;
+      });
+    const Wv = Math.max(260, el.clientWidth || 320);
+    const labL = 30, labT = 34;
+    const cw = Math.max(9, (Wv - labL - 6) / depts.length);
+    const chh = Math.max(7, Math.min(14, cw));
+    const H = labT + stores.length * chh + 8;
+    const svg = d3.select(el).append('svg').attr('width', '100%')
+      .attr('height', H).attr('viewBox', `0 0 ${Wv} ${H}`)
+      .attr('preserveAspectRatio', 'xMinYMin meet');
+    const max = d3.max(rows, (r) => +r.pct_of_store);
+    const typeOf = {};
+    rows.forEach((r) => { typeOf[+r.store] = r.type; });
+    const tip = K.tip(el);
+    depts.forEach((dp, j) => {
+      if (cw < 13 && j % 2) return;
+      svg.append('text')
+        .attr('transform', `translate(${labL + j * cw + cw / 2},${labT - 6}) rotate(-52)`)
+        .attr('font-size', 9).attr('fill', 'var(--color-fg-muted)').text(dp);
+    });
+    stores.forEach((s, i) => {
+      if (chh >= 11 || i % 2 === 0) {
+        svg.append('text').attr('x', labL - 4).attr('y', labT + i * chh + chh / 2 + 3)
+          .attr('text-anchor', 'end').attr('font-size', 9)
+          .attr('fill', 'var(--color-fg-muted)').text(s);
+      }
+    });
+    svg.append('g').selectAll('rect').data(rows).join('rect')
+      .attr('x', (r) => labL + depts.indexOf(+r.dept) * cw)
+      .attr('y', (r) => labT + stores.indexOf(+r.store) * chh)
+      .attr('width', Math.max(1, cw - 0.8)).attr('height', Math.max(1, chh - 0.8))
+      .attr('fill', dash.colors[0])
+      .attr('fill-opacity', (r) => ramp(+r.pct_of_store / max))
+      .on('mousemove', function (e, r) {
+        const [mx, my] = d3.pointer(e, svg.node());
+        tip.show('Store ' + r.store + ' · dept ' + r.dept, [
+          { name: 'Share of this store', value: F.pct(+r.pct_of_store), color: dash.colors[0] },
+          { name: 'Revenue', value: F.usd(+r.revenue) },
+          { name: 'Store format', value: 'Type ' + r.type },
+        ], mx, my);
+      })
+      .on('mouseleave', tip.hide);
+    svg.append('text').attr('x', labL).attr('y', H - 1).attr('font-size', 9)
+      .attr('fill', 'var(--color-fg-muted)')
+      .text('department number, largest first →');
+  };
+
+  /* ---- department treemap ---- */
+  draw.tree = function () {
+    const el = document.getElementById('ch-tree');
+    if (!el || el.offsetParent === null) return;
+    if (K.err('depts')) return K.failLine(el, 300);
+    const rows = K.rows('depts');
+    if (!rows.length) { K.frame(el, 300); return; }
+    el.querySelectorAll('svg').forEach((s) => s.remove());
+    const Wv = Math.max(260, el.clientWidth || 320);
+    const H = Math.max(240, Math.min(380, Wv * 0.56));
+    const top = rows.slice().sort((a, b) => +b.revenue - +a.revenue).slice(0, 34);
+    const rest = rows.slice().sort((a, b) => +b.revenue - +a.revenue).slice(34);
+    const kids = top.map((r) => ({
+      name: 'Dept ' + r.dept, v: +r.revenue, share: +r.share_pct,
+      cv: +r.cv, hol: r.hol_lift, lone: false,
+    }));
+    if (rest.length) {
+      kids.push({
+        name: rest.length + ' smaller depts',
+        v: d3.sum(rest, (r) => +r.revenue),
+        share: d3.sum(rest, (r) => +r.share_pct), cv: null, hol: '', lone: true,
+      });
+    }
+    const root = d3.hierarchy({ children: kids }).sum((n) => n.v || 0)
+      .sort((a, b) => b.value - a.value);
+    d3.treemap().size([Wv, H]).paddingInner(2).round(true)(root);
+    const svg = d3.select(el).append('svg').attr('width', '100%')
+      .attr('height', H).attr('viewBox', `0 0 ${Wv} ${H}`)
+      .attr('preserveAspectRatio', 'xMinYMin meet');
+    const max = d3.max(root.leaves(), (n) => n.value);
+    const tip = K.tip(el);
+    const g = svg.append('g').selectAll('g').data(root.leaves()).join('g')
+      .attr('transform', (n) => `translate(${n.x0},${n.y0})`);
+    g.append('rect')
+      .attr('width', (n) => Math.max(0, n.x1 - n.x0))
+      .attr('height', (n) => Math.max(0, n.y1 - n.y0))
+      .attr('rx', 3)
+      .attr('fill', (n) => (n.data.lone ? MUTED : dash.colors[0]))
+      .attr('fill-opacity', (n) => (n.data.lone ? 0.3 : ramp(n.value / max)))
+      .on('mousemove', function (e, n) {
+        const [mx, my] = d3.pointer(e, svg.node());
+        const lines = [
+          { name: 'Revenue', value: F.usd(n.value), color: dash.colors[0] },
+          { name: 'Share of chain', value: F.pct(n.data.share) },
+        ];
+        if (n.data.cv !== null) lines.push({ name: 'Volatility', value: F.ratio(n.data.cv) });
+        if (n.data.hol) lines.push({ name: 'Holiday lift', value: F.pctS(+n.data.hol) });
+        tip.show(n.data.name, lines, mx, my);
+      })
+      .on('mouseleave', tip.hide);
+    g.each(function (n) {
+      const w = n.x1 - n.x0, h = n.y1 - n.y0;
+      if (w < 44 || h < 22) return;
+      const sel = d3.select(this);
+      const strong = n.value / max > 0.55;
+      sel.append('text').attr('x', 5).attr('y', 13).attr('font-size', 11)
+        .attr('fill', strong ? 'var(--color-bg)' : 'var(--color-fg)')
+        .text(n.data.name.replace('Dept ', 'D'));
+      if (h > 34) {
+        sel.append('text').attr('x', 5).attr('y', 26).attr('font-size', 10)
+          .attr('fill', strong ? 'var(--color-bg)' : 'var(--color-fg-muted)')
+          .text(F.pct(n.data.share));
+      }
+    });
+  };
+
+  /* ---- generic bubble scatter over the stores table ---- */
+  function bubbles(elId, xf, yf, opt) {
+    const el = document.getElementById(elId);
+    if (!el || el.offsetParent === null) return;
+    if (K.err('stores')) return K.failLine(el, opt.h - 20);
+    const rows = K.rows('stores');
+    const f = K.frame(el, opt.h, { b: 36, t: 14, r: 18 });
+    if (!rows.length) return;
+    const p = dash.params();
+    const d = rows.map((r) => ({
+      s: r.store, t: r.type, x: xf(r), y: yf(r),
+      sz: +r.size, rev: +r.total_rev, rps: +r.rev_per_sqft,
+      cv: +r.cv, wk: +r.avg_weekly,
+    })).filter((r) => isFinite(r.x) && isFinite(r.y));
+    const y = d3.scaleLinear(d3.extent(d, (r) => r.y), [0, 1]).nice();
+    f.m.l = K.tickW(f.svg, y.ticks(5), opt.fy) + 10;
+    y.range([f.H - f.m.b, f.m.t]);
+    const x = d3.scaleLinear(d3.extent(d, (r) => r.x), [f.m.l, f.W - f.m.r]).nice();
+    const r = d3.scaleSqrt(d3.extent(d, (q) => q.rev), [4, 15]);
+    K.grid(f.svg, y, f.m.l, f.W - f.m.r, 5);
+    if (opt.refY !== undefined) {
+      f.svg.append('line').attr('x1', f.m.l).attr('x2', f.W - f.m.r)
+        .attr('y1', y(opt.refY)).attr('y2', y(opt.refY))
+        .attr('stroke', 'var(--cds-chart-reference)').attr('stroke-dasharray', '4 3');
+      f.svg.append('text').attr('x', f.W - f.m.r).attr('y', y(opt.refY) - 5)
+        .attr('text-anchor', 'end').attr('font-size', 10)
+        .attr('fill', 'var(--color-fg-muted)').text(opt.refLabel || '');
+    }
+    const TC = { A: dash.colors[0], B: dash.colors[1], C: dash.colors[2] };
+    const tip = K.tip(el);
+    const dim = (q) => (p.format && p.format !== 'all' && q.t !== p.format);
+    f.svg.append('g').selectAll('circle').data(d).join('circle')
+      .attr('cx', (q) => x(q.x)).attr('cy', (q) => y(q.y)).attr('r', (q) => r(q.rev))
+      .attr('fill', (q) => (dim(q) ? MUTED : TC[q.t]))
+      .attr('fill-opacity', (q) => (dim(q) ? 0.18 : 0.6))
+      .attr('stroke', (q) => (String(p.store) === String(q.s) ? 'var(--color-fg)' : 'none'))
+      .attr('stroke-width', 1.8).style('cursor', 'pointer')
+      .on('mousemove', function (e, q) {
+        const [mx, my] = d3.pointer(e, f.svg.node());
+        tip.show('Store ' + q.s + ' (Type ' + q.t + ')', [
+          { name: opt.xName, value: opt.fxTip(q.x), color: TC[q.t] },
+          { name: opt.yName, value: opt.fyTip(q.y) },
+          { name: 'Total revenue', value: F.usd(q.rev) },
+        ], mx, my);
+      })
+      .on('mouseleave', tip.hide)
+      .on('click', (e, q) => {
+        dash.setParams({ store: String(p.store) === String(q.s) ? null : String(q.s) });
+        draw[opt.self]();
+        if (window.D2) { window.D2.storeTable(); window.D2.pca(); }
+      });
+    let lx = f.m.l;
+    const lg = f.svg.append('g');
+    ['A', 'B', 'C'].forEach((t) => {
+      const gg = lg.append('g').attr('transform', `translate(${lx},${f.m.t})`);
+      gg.append('circle').attr('r', 4).attr('cx', 4).attr('cy', -2)
+        .attr('fill', TC[t]).attr('fill-opacity', 0.6);
+      const tx = gg.append('text').attr('x', 13).attr('y', 2).attr('font-size', 11)
+        .attr('fill', 'var(--color-fg-muted)').text('Type ' + t);
+      lx += 13 + tx.node().getComputedTextLength() + 14;
+    });
+    if (lx > f.W - f.m.r) lg.remove();
+    K.axis(f.svg.append('g').attr('transform', `translate(0,${f.H - f.m.b})`)
+      .call(d3.axisBottom(x).ticks(Math.max(3, Math.floor(f.W / 100))).tickFormat(opt.fx)));
+    K.axis(f.svg.append('g').attr('transform', `translate(${f.m.l},0)`)
+      .call(d3.axisLeft(y).ticks(5).tickFormat(opt.fy).tickSize(0)))
+      .select('.domain').remove();
+    f.svg.append('text').attr('x', (f.m.l + f.W - f.m.r) / 2).attr('y', f.H - 4)
+      .attr('text-anchor', 'middle').attr('font-size', 10)
+      .attr('fill', 'var(--color-fg-muted)').text(opt.xName);
+  }
+
+  draw.bubble = function () {
+    const bench = K.rows('kpis').find((r) => r.metric === 'b_topq_rps');
+    bubbles('ch-bubble', (r) => +r.size, (r) => +r.rev_per_sqft, {
+      h: 320, self: 'bubble',
+      xName: 'Floor space (sq ft)', yName: 'Revenue per sq ft',
+      fx: (v) => d3.format('.2~s')(v), fy: (v) => '$' + d3.format(',.0f')(v),
+      fxTip: (v) => F.num(v) + ' sq ft', fyTip: (v) => '$' + d3.format(',.0f')(v),
+      refY: bench ? +bench.value : undefined, refLabel: 'top-quartile benchmark',
+    });
+  };
+
+  draw.vol = function () {
+    bubbles('ch-vol', (r) => +r.avg_weekly, (r) => +r.cv, {
+      h: 300, self: 'vol',
+      xName: 'Average weekly revenue', yName: 'Volatility (coefficient of variation)',
+      fx: F.usdAxis, fy: (v) => d3.format('.2f')(v),
+      fxTip: F.usdFull, fyTip: (v) => d3.format('.3f')(v),
+    });
+  };
+
+  /* ---- monthly revenue bars ---- */
+  draw.monthly = function () {
+    const el = document.getElementById('ch-monthly');
+    if (!el || el.offsetParent === null) return;
+    if (K.err('seasonality')) return K.failLine(el, 250);
+    const rows = K.rows('seasonality').filter((r) => r.kind === 'month_series')
+      .sort((a, b) => +a.sort - +b.sort);
+    const f = K.frame(el, 270, { b: 48, t: 16 });
+    if (!rows.length) return;
+    const d = rows.map((r) => ({ k: r.label, v: +r.value, sort: +r.sort }));
+    const y = d3.scaleLinear([0, d3.max(d, (r) => r.v) * 1.08], [0, 1]);
+    f.m.l = K.tickW(f.svg, y.ticks(5), F.usdAxis) + 10;
+    y.range([f.H - f.m.b, f.m.t]);
+    const x = d3.scaleBand().domain(d.map((r) => r.k))
+      .range([f.m.l, f.W - f.m.r]).padding(0.2);
+    K.grid(f.svg, y, f.m.l, f.W - f.m.r, 5);
+    const max = d3.max(d, (r) => r.v);
+    const tip = K.tip(el);
+    f.svg.append('g').selectAll('rect').data(d).join('rect')
+      .attr('x', (r) => x(r.k)).attr('width', Math.min(26, x.bandwidth()))
+      .attr('y', (r) => y(r.v)).attr('height', (r) => Math.max(0, y(0) - y(r.v)))
+      .attr('rx', 3)
+      .attr('fill', (r) => (r.v > max * 0.9 ? dash.colors[0] : MUTED))
+      .on('mousemove', function (e, r) {
+        const [mx, my] = d3.pointer(e, f.svg.node());
+        tip.show(r.k, [{ name: 'Revenue', value: F.usd(r.v), color: dash.colors[0] }], mx, my);
+      })
+      .on('mouseleave', tip.hide);
+    const every = Math.max(1, Math.round(d.length / Math.max(4, f.W / 72)));
+    K.axis(f.svg.append('g').attr('transform', `translate(0,${f.H - f.m.b})`)
+      .call(d3.axisBottom(x).tickSize(0)
+        .tickValues(x.domain().filter((v, i) => i % every === 0))))
+      .selectAll('text').attr('transform', 'rotate(-40)').attr('text-anchor', 'end');
+    K.axis(f.svg.append('g').attr('transform', `translate(${f.m.l},0)`)
+      .call(d3.axisLeft(y).ticks(5).tickFormat(F.usdAxis).tickSize(0)))
+      .select('.domain').remove();
+  };
+
+  /* ---- horizontal diverging bars over the depts table ---- */
+  function deptBars(elId, field, opt) {
+    const el = document.getElementById(elId);
+    if (!el || el.offsetParent === null) return;
+    if (K.err('depts')) return K.failLine(el, opt.h - 20);
+    const all = K.rows('depts').filter((r) => r[field] !== '' && isFinite(+r[field]));
+    const f = K.frame(el, opt.h, { b: 32, t: 10, r: 16, l: 48 });
+    if (!all.length) return;
+    let d = all.map((r) => ({ k: 'D' + r.dept, v: +r[field], rev: +r.revenue }));
+    if (opt.big) d = d.filter((r) => r.rev >= d3.quantile(all.map((q) => +q.revenue), 0.5));
+    d.sort((a, b) => b.v - a.v);
+    const n = opt.n || 9;
+    d = d.slice(0, n).concat(d.slice(-n)).filter((v, i, a) => a.indexOf(v) === i);
+    d.sort((a, b) => b.v - a.v);
+    const ex = d3.max(d, (r) => Math.abs(r.v)) * 1.12;
+    const x = d3.scaleLinear(opt.signed ? [-ex, ex] : [0, ex], [0, 1]);
+    f.m.l = K.tickW(f.svg, d.map((r) => r.k), (v) => v) + 10;
+    x.range([f.m.l, f.W - f.m.r]);
+    const y = d3.scaleBand().domain(d.map((r) => r.k))
+      .range([f.m.t, f.H - f.m.b]).padding(0.22);
+    const zero = opt.signed ? x(0) : f.m.l;
+    f.svg.append('line').attr('x1', zero).attr('x2', zero)
+      .attr('y1', f.m.t).attr('y2', f.H - f.m.b).attr('stroke', 'var(--cds-chart-axis)');
+    const tip = K.tip(el);
+    f.svg.append('g').selectAll('rect').data(d).join('rect')
+      .attr('x', (r) => (r.v >= 0 ? zero : x(r.v)))
+      .attr('width', (r) => Math.max(1, Math.abs(x(r.v) - zero)))
+      .attr('y', (r) => y(r.k)).attr('height', Math.min(15, y.bandwidth()))
+      .attr('rx', 3)
+      .attr('fill', (r) => (r.v >= 0 ? dash.colors[0] : 'var(--cds-chart-status-critical)'))
+      .on('mousemove', function (e, r) {
+        const [mx, my] = d3.pointer(e, f.svg.node());
+        tip.show('Department ' + r.k.slice(1), [
+          { name: opt.name, value: opt.f(r.v) },
+          { name: 'Revenue', value: F.usd(r.rev) },
+        ], mx, my);
+      })
+      .on('mouseleave', tip.hide);
+    K.axis(f.svg.append('g').attr('transform', `translate(0,${f.H - f.m.b})`)
+      .call(d3.axisBottom(x).ticks(Math.max(3, Math.floor(f.W / 110))).tickFormat(opt.f)));
+    K.axis(f.svg.append('g').attr('transform', `translate(${f.m.l},0)`)
+      .call(d3.axisLeft(y).tickSize(0))).select('.domain').remove();
+  }
+
+  draw.holLift = function () {
+    deptBars('ch-hollift', 'hol_lift', {
+      h: 330, signed: true, big: true, n: 9,
+      name: 'Holiday lift', f: (v) => d3.format('+.0f')(v) + '%',
+    });
+  };
+  draw.growth = function () {
+    deptBars('ch-growth', 'growth_pct', {
+      h: 330, signed: true, big: true, n: 9,
+      name: 'Growth, 2011 on 2010', f: (v) => d3.format('+.0f')(v) + '%',
+    });
+  };
+
+  /* ---- revenue concentration curve ---- */
+  draw.lorenz = function () {
+    const el = document.getElementById('ch-lorenz');
+    if (!el || el.offsetParent === null) return;
+    if (K.err('stores') || K.err('depts')) return K.failLine(el, 280);
+    const f = K.frame(el, 300, { b: 42, t: 22, r: 18 });
+    const sRows = K.rows('stores'), dRows = K.rows('depts');
+    if (!sRows.length || !dRows.length) return;
+    const curve = (rows, key) => {
+      const v = rows.map((r) => +r[key]).sort((a, b) => b - a);
+      const tot = d3.sum(v);
+      let acc = 0;
+      return [{ x: 0, y: 0 }].concat(v.map((q, i) => {
+        acc += q;
+        return { x: (i + 1) / v.length * 100, y: acc / tot * 100 };
+      }));
+    };
+    const sets = [
+      { name: 'Stores', d: curve(sRows, 'total_rev'), c: dash.colors[0] },
+      { name: 'Departments', d: curve(dRows, 'revenue'), c: dash.colors[3] },
+    ];
+    const y = d3.scaleLinear([0, 100], [0, 1]);
+    f.m.l = K.tickW(f.svg, y.ticks(5), (v) => v + '%') + 10;
+    y.range([f.H - f.m.b, f.m.t]);
+    const x = d3.scaleLinear([0, 100], [f.m.l, f.W - f.m.r]);
+    K.grid(f.svg, y, f.m.l, f.W - f.m.r, 5);
+    f.svg.append('line').attr('x1', x(0)).attr('y1', y(0))
+      .attr('x2', x(100)).attr('y2', y(100))
+      .attr('stroke', 'var(--cds-chart-reference)').attr('stroke-dasharray', '4 3');
+    sets.forEach((s) => {
+      f.svg.append('path').attr('fill', 'none').attr('stroke', s.c)
+        .attr('stroke-width', 2).attr('stroke-linecap', 'round')
+        .attr('d', d3.line().x((r) => x(r.x)).y((r) => y(r.y))(s.d));
+      const end = s.d[Math.min(s.d.length - 1, Math.round(s.d.length * 0.42))];
+      f.svg.append('text').attr('x', x(end.x) + 6).attr('y', y(end.y) - 4)
+        .attr('font-size', 11).attr('fill', s.c).text(s.name);
+    });
+    const tip = K.tip(el);
+    f.svg.append('rect').attr('x', f.m.l).attr('y', f.m.t)
+      .attr('width', Math.max(1, f.W - f.m.l - f.m.r))
+      .attr('height', Math.max(1, f.H - f.m.t - f.m.b)).attr('fill', 'transparent')
+      .on('mousemove', function (e) {
+        const [mx, my] = d3.pointer(e, this);
+        const xv = x.invert(mx + f.m.l);
+        const at = (s) => {
+          const i = d3.leastIndex(s.d, (a, b) => Math.abs(a.x - xv) - Math.abs(b.x - xv));
+          return s.d[i];
+        };
+        tip.show('Top ' + d3.format('.0f')(xv) + '% of each', sets.map((s) => ({
+          name: s.name, value: F.pct(at(s).y) + ' of revenue', color: s.c,
+        })), mx + f.m.l, my);
+      })
+      .on('mouseleave', tip.hide);
+    K.axis(f.svg.append('g').attr('transform', `translate(0,${f.H - f.m.b})`)
+      .call(d3.axisBottom(x).ticks(5).tickFormat((v) => v + '%')));
+    K.axis(f.svg.append('g').attr('transform', `translate(${f.m.l},0)`)
+      .call(d3.axisLeft(y).ticks(5).tickFormat((v) => v + '%').tickSize(0)))
+      .select('.domain').remove();
+    f.svg.append('text').attr('x', (f.m.l + f.W - f.m.r) / 2).attr('y', f.H - 4)
+      .attr('text-anchor', 'middle').attr('font-size', 10)
+      .attr('fill', 'var(--color-fg-muted)')
+      .text('share of stores or departments, largest first');
+  };
+
+  /* ---- cluster profiles as parallel coordinates ---- */
+  draw.parallel = function () {
+    const el = document.getElementById('ch-par');
+    if (!el || el.offsetParent === null) return;
+    if (K.err('segments')) return K.failLine(el, 280);
+    const rows = K.rows('segments').filter((r) => r.kind === 'cluster');
+    const f = K.frame(el, 300, { b: 44, t: 26, r: 24, l: 24 });
+    if (!rows.length) return;
+    const AX = [
+      { k: 'avg_weekly_per_store', n: 'Weekly revenue', f: F.usdAxis },
+      { k: 'avg_size', n: 'Floor space', f: (v) => d3.format('.2~s')(v) },
+      { k: 'rev_per_sqft', n: '$ / sq ft', f: (v) => '$' + d3.format(',.0f')(v) },
+      { k: 'cv', n: 'Volatility', f: (v) => d3.format('.2f')(v) },
+      { k: 'hol_lift', n: 'Holiday lift', f: (v) => d3.format('+.0f')(v) + '%' },
+      { k: 'unemployment', n: 'Unemployment', f: (v) => d3.format('.1f')(v) + '%' },
+    ];
+    const x = d3.scalePoint().domain(AX.map((a) => a.n))
+      .range([f.m.l, f.W - f.m.r]).padding(0.12);
+    const sc = {};
+    AX.forEach((a) => {
+      const vals = rows.map((r) => +r[a.k]).filter(isFinite);
+      sc[a.k] = d3.scaleLinear([d3.min(vals) * 0.92, d3.max(vals) * 1.05],
+        [f.H - f.m.b, f.m.t]);
+    });
+    AX.forEach((a) => {
+      const gx = x(a.n);
+      f.svg.append('line').attr('x1', gx).attr('x2', gx)
+        .attr('y1', f.m.t).attr('y2', f.H - f.m.b)
+        .attr('stroke', 'var(--cds-chart-grid)');
+      f.svg.append('text').attr('x', gx).attr('y', f.m.t - 10)
+        .attr('text-anchor', 'middle').attr('font-size', 10)
+        .attr('fill', 'var(--color-fg-muted)').text(a.n);
+      [0, 1].forEach((e) => {
+        const v = sc[a.k].domain()[e];
+        f.svg.append('text').attr('x', gx).attr('y', e ? f.m.t + 10 : f.H - f.m.b + 13)
+          .attr('text-anchor', 'middle').attr('font-size', 9)
+          .attr('fill', 'var(--color-fg-muted)').text(a.f(v));
+      });
+    });
+    const tip = K.tip(el);
+    rows.forEach((r, i) => {
+      const pts = AX.map((a) => ({ x: x(a.n), y: sc[a.k](+r[a.k]) }))
+        .filter((p) => isFinite(p.y));
+      const col = dash.colors[i % 8];
+      f.svg.append('path').attr('fill', 'none').attr('stroke', col)
+        .attr('stroke-width', 2.2).attr('stroke-linecap', 'round')
+        .attr('stroke-linejoin', 'round').attr('stroke-opacity', 0.85)
+        .attr('d', d3.line().x((p) => p.x).y((p) => p.y)(pts))
+        .style('cursor', 'pointer')
+        .on('mousemove', function (e) {
+          const [mx, my] = d3.pointer(e, f.svg.node());
+          tip.show(r.group, AX.map((a) => ({
+            name: a.n, value: r[a.k] === '' ? '—' : a.f(+r[a.k]),
+          })).concat([{ name: 'Stores', value: r.stores, color: col }]), mx, my);
+        })
+        .on('mouseleave', tip.hide);
+      f.svg.append('g').selectAll('circle').data(pts).join('circle')
+        .attr('cx', (p) => p.x).attr('cy', (p) => p.y).attr('r', 3).attr('fill', col);
+    });
+    let lx = f.m.l;
+    const lg = f.svg.append('g');
+    rows.forEach((r, i) => {
+      const gg = lg.append('g').attr('transform', `translate(${lx},${f.H - 6})`);
+      gg.append('line').attr('x1', 0).attr('x2', 13).attr('y1', -3).attr('y2', -3)
+        .attr('stroke', dash.colors[i % 8]).attr('stroke-width', 2.2);
+      const tx = gg.append('text').attr('x', 18).attr('y', 0).attr('font-size', 10)
+        .attr('fill', 'var(--color-fg-muted)').text(r.group);
+      lx += 18 + tx.node().getComputedTextLength() + 14;
+    });
+    if (lx > f.W) lg.remove();
+  };
+
+  /* ---- sampling convergence ---- */
+  draw.sampConv = function () {
+    const el = document.getElementById('ch-conv');
+    if (!el || el.offsetParent === null) return;
+    if (K.err('sampling')) return K.failLine(el, 240);
+    const rows = K.rows('sampling').filter((r) => r.method === 'simple random');
+    const f = K.frame(el, 260, { b: 42, t: 16 });
+    if (!rows.length) return;
+    const d = rows.map((r) => ({ n: +r.n, e: +r.err_pct, m: +r.mean }))
+      .sort((a, b) => a.n - b.n);
+    const y = d3.scaleLinear([0, d3.max(d, (r) => r.e) * 1.1], [0, 1]);
+    f.m.l = K.tickW(f.svg, y.ticks(5), (v) => d3.format('.1f')(v) + '%') + 10;
+    y.range([f.H - f.m.b, f.m.t]);
+    const x = d3.scaleLog(d3.extent(d, (r) => r.n), [f.m.l, f.W - f.m.r]);
+    K.grid(f.svg, y, f.m.l, f.W - f.m.r, 5);
+    f.svg.append('path').attr('fill', 'none').attr('stroke', dash.colors[0])
+      .attr('stroke-width', 2).attr('stroke-linecap', 'round')
+      .attr('d', d3.line().x((r) => x(r.n)).y((r) => y(r.e))(d));
+    const tip = K.tip(el);
+    f.svg.append('g').selectAll('circle').data(d).join('circle')
+      .attr('cx', (r) => x(r.n)).attr('cy', (r) => y(r.e)).attr('r', 4)
+      .attr('fill', dash.colors[0])
+      .on('mousemove', function (e, r) {
+        const [mx, my] = d3.pointer(e, f.svg.node());
+        tip.show(F.num(r.n) + ' records sampled', [
+          { name: 'Error against population', value: F.pct(r.e), color: dash.colors[0] },
+          { name: 'Sample mean', value: F.usd(r.m) },
+        ], mx, my);
+      })
+      .on('mouseleave', tip.hide);
+    K.axis(f.svg.append('g').attr('transform', `translate(0,${f.H - f.m.b})`)
+      .call(d3.axisBottom(x).ticks(5, '~s')));
+    K.axis(f.svg.append('g').attr('transform', `translate(${f.m.l},0)`)
+      .call(d3.axisLeft(y).ticks(5).tickFormat((v) => d3.format('.1f')(v) + '%').tickSize(0)))
+      .select('.domain').remove();
+    f.svg.append('text').attr('x', (f.m.l + f.W - f.m.r) / 2).attr('y', f.H - 4)
+      .attr('text-anchor', 'middle').attr('font-size', 10)
+      .attr('fill', 'var(--color-fg-muted)').text('sample size (log scale)');
+  };
+
+  /* ---- percentile ladder ---- */
+  draw.pctl = function () {
+    const el = document.getElementById('ch-pctl');
+    if (!el || el.offsetParent === null) return;
+    if (K.err('kpis')) return K.failLine(el, 260);
+    const rows = K.rows('kpis')
+      .filter((r) => /^e5_p\d+$/.test(r.metric))
+      .map((r) => ({ p: +r.metric.slice(4), v: +r.value }))
+      .sort((a, b) => a.p - b.p);
+    const f = K.frame(el, 280, { b: 34, t: 10, r: 16 });
+    if (!rows.length) return;
+    const x = d3.scaleLinear([Math.min(0, d3.min(rows, (r) => r.v)),
+      d3.max(rows, (r) => r.v) * 1.04], [0, 1]);
+    const labs = rows.map((r) => r.p + 'th');
+    f.m.l = K.tickW(f.svg, labs, (v) => v) + 10;
+    x.range([f.m.l, f.W - f.m.r]);
+    const y = d3.scaleBand().domain(labs).range([f.m.t, f.H - f.m.b]).padding(0.24);
+    const max = d3.max(rows, (r) => r.v);
+    const tip = K.tip(el);
+    f.svg.append('g').selectAll('rect').data(rows).join('rect')
+      .attr('x', x(0)).attr('y', (r) => y(r.p + 'th'))
+      .attr('width', (r) => Math.max(1, x(r.v) - x(0)))
+      .attr('height', Math.min(16, y.bandwidth())).attr('rx', 3)
+      .attr('fill', dash.colors[0]).attr('fill-opacity', (r) => ramp(r.v / max))
+      .on('mousemove', function (e, r) {
+        const [mx, my] = d3.pointer(e, f.svg.node());
+        tip.show(r.p + 'th percentile', [
+          { name: 'Weekly sales at or below', value: F.usdFull(r.v), color: dash.colors[0] },
+        ], mx, my);
+      })
+      .on('mouseleave', tip.hide);
+    f.svg.append('g').selectAll('text').data(rows).join('text')
+      .attr('x', (r) => x(r.v) + 5)
+      .attr('y', (r) => y(r.p + 'th') + Math.min(16, y.bandwidth()) / 2 + 3.5)
+      .attr('font-size', 10).attr('fill', 'var(--color-fg-muted)')
+      .text((r) => F.usd(r.v));
+    K.axis(f.svg.append('g').attr('transform', `translate(0,${f.H - f.m.b})`)
+      .call(d3.axisBottom(x).ticks(Math.max(3, Math.floor(f.W / 110))).tickFormat(F.usdAxis)));
+    K.axis(f.svg.append('g').attr('transform', `translate(${f.m.l},0)`)
+      .call(d3.axisLeft(y).tickSize(0))).select('.domain').remove();
+  };
+
+  /* ---- regression residuals ---- */
+  draw.resid = function () {
+    const el = document.getElementById('ch-resid');
+    if (!el || el.offsetParent === null) return;
+    if (K.err('curves')) return K.failLine(el, 230);
+    const rows = K.rows('curves').filter((r) => r.series === 'resid_hist');
+    const f = K.frame(el, 250, { b: 34, t: 14 });
+    if (!rows.length) return;
+    const d = rows.map((r) => ({ x: +r.x, y: +r.y })).sort((a, b) => a.x - b.x);
+    const y = d3.scaleLinear([0, d3.max(d, (r) => r.y) * 1.06], [0, 1]);
+    f.m.l = K.tickW(f.svg, y.ticks(5), (v) => d3.format('.2~s')(v)) + 10;
+    y.range([f.H - f.m.b, f.m.t]);
+    const x = d3.scaleLinear(d3.extent(d, (r) => r.x), [f.m.l, f.W - f.m.r]);
+    K.grid(f.svg, y, f.m.l, f.W - f.m.r, 5);
+    const bw = Math.max(1, (f.W - f.m.l - f.m.r) / d.length - 1);
+    const tip = K.tip(el);
+    f.svg.append('g').selectAll('rect').data(d).join('rect')
+      .attr('x', (r) => x(r.x)).attr('width', bw)
+      .attr('y', (r) => y(r.y)).attr('height', (r) => Math.max(0, y(0) - y(r.y)))
+      .attr('fill', (r) => (Math.abs(r.x) < 1e-9 ? dash.colors[0] : dash.colors[0]))
+      .attr('fill-opacity', 0.85)
+      .on('mousemove', function (e, r) {
+        const [mx, my] = d3.pointer(e, f.svg.node());
+        tip.show('Residual near ' + F.usd(r.x), [
+          { name: 'Store-weeks', value: F.num(r.y), color: dash.colors[0] },
+        ], mx, my);
+      })
+      .on('mouseleave', tip.hide);
+    f.svg.append('line').attr('x1', x(0)).attr('x2', x(0))
+      .attr('y1', f.m.t).attr('y2', f.H - f.m.b)
+      .attr('stroke', 'var(--cds-chart-reference)').attr('stroke-dasharray', '4 3');
+    K.axis(f.svg.append('g').attr('transform', `translate(0,${f.H - f.m.b})`)
+      .call(d3.axisBottom(x).ticks(Math.max(3, Math.floor(f.W / 100))).tickFormat(F.usdAxis)));
+    K.axis(f.svg.append('g').attr('transform', `translate(${f.m.l},0)`)
+      .call(d3.axisLeft(y).ticks(5).tickFormat(d3.format('.2~s')).tickSize(0)))
+      .select('.domain').remove();
+  };
+
+  return draw;
+}());
+</script>
+<script>
+/* ------------------------------------------- forecast, method, wiring */
+window.D3 = (function () {
+  const K = window.W, F = K.F;
+  const draw = {};
+
+  /* ---- decomposition ---- */
+  let dcView = 'observed';
+  K.chips('dc', (v) => { dcView = v; draw.decomp(); });
+  draw.decomp = function () {
+    const el = document.getElementById('ch-dec');
+    if (!el || el.offsetParent === null) return;
+    if (K.err('weekly')) return K.failLine(el, 260);
+    const rows = K.rows('weekly');
+    const f = K.frame(el, 280);
+    if (!rows.length) return;
+    const KEY = { observed: 'sales', trend: 'trend', seasonal: 'seasonal', resid: 'resid' };
+    const key = KEY[dcView];
+    const d = rows.map((r) => ({ date: K.parseDate(r.date), v: K.n(r[key]) }))
+      .filter((r) => r.v !== null);
+    if (!d.length) return;
+    const isIdx = dcView === 'seasonal' || dcView === 'resid';
+    const fy = isIdx ? d3.format('.2f') : F.usdAxis;
+    const ext = d3.extent(d, (r) => r.v);
+    const y = d3.scaleLinear(isIdx ? [ext[0] * 0.98, ext[1] * 1.02] : [0, ext[1] * 1.06], [0, 1]);
+    f.m.l = K.tickW(f.svg, y.ticks(5), fy) + 10;
+    y.range([f.H - f.m.b, f.m.t]);
+    const x = d3.scaleUtc(d3.extent(d, (r) => r.date), [f.m.l, f.W - f.m.r]);
+    K.grid(f.svg, y, f.m.l, f.W - f.m.r, 5);
+    if (isIdx) {
+      f.svg.append('line').attr('x1', f.m.l).attr('x2', f.W - f.m.r)
+        .attr('y1', y(1)).attr('y2', y(1))
+        .attr('stroke', 'var(--cds-chart-reference)').attr('stroke-dasharray', '4 3');
+    }
+    f.svg.append('path').attr('fill', 'none').attr('stroke', dash.colors[0])
+      .attr('stroke-width', 2).attr('stroke-linecap', 'round')
+      .attr('stroke-linejoin', 'round')
+      .attr('d', d3.line().x((r) => x(r.date)).y((r) => y(r.v))(d));
+    const tip = K.tip(el);
+    const hov = f.svg.append('circle').attr('r', 4).attr('fill', dash.colors[0])
+      .attr('stroke', 'var(--color-panel)').attr('stroke-width', 2).attr('opacity', 0);
+    f.svg.append('rect').attr('x', f.m.l).attr('y', f.m.t)
+      .attr('width', Math.max(1, f.W - f.m.l - f.m.r))
+      .attr('height', Math.max(1, f.H - f.m.t - f.m.b)).attr('fill', 'transparent')
+      .on('mousemove', function (e) {
+        const [mx] = d3.pointer(e, this);
+        const dt = x.invert(mx + f.m.l);
+        const i = d3.leastIndex(d, (a, b) => Math.abs(a.date - dt) - Math.abs(b.date - dt));
+        const r = d[i];
+        hov.attr('opacity', 1).attr('cx', x(r.date)).attr('cy', y(r.v));
+        tip.show(F.date(r.date), [{
+          name: dcView === 'observed' ? 'Chain revenue'
+            : dcView === 'trend' ? 'Trend'
+            : dcView === 'seasonal' ? 'Seasonal index' : 'Residual',
+          value: isIdx ? d3.format('.3f')(r.v) : F.usdFull(r.v),
+          color: dash.colors[0],
+        }], x(r.date), y(r.v));
+      })
+      .on('mouseleave', () => { tip.hide(); hov.attr('opacity', 0); });
+    K.axis(f.svg.append('g').attr('transform', `translate(0,${f.H - f.m.b})`)
+      .call(d3.axisBottom(x).ticks(Math.max(2, Math.floor(f.W / 110)))));
+    K.axis(f.svg.append('g').attr('transform', `translate(${f.m.l},0)`)
+      .call(d3.axisLeft(y).ticks(5).tickFormat(fy).tickSize(0)))
+      .select('.domain').remove();
+  };
+
+  /* ---- seasonal index ---- */
+  let snView = 'week';
+  K.chips('sn', (v) => { snView = v; draw.season(); });
+  draw.season = function () {
+    const el = document.getElementById('ch-season');
+    if (!el || el.offsetParent === null) return;
+    if (K.err('seasonality')) return K.failLine(el, 250);
+    const rows = K.rows('seasonality').filter((r) => r.kind === snView)
+      .sort((a, b) => +a.sort - +b.sort);
+    const f = K.frame(el, 270, { b: 34, t: 18 });
+    if (!rows.length) return;
+    const isWeek = snView === 'week';
+    const d = rows.map((r) => ({
+      k: r.label, v: isWeek ? +r.index : +r.index / 100, raw: K.n(r.value),
+    }));
+    const y = d3.scaleLinear([0, d3.max(d, (r) => r.v) * 1.08], [0, 1]);
+    const fy = d3.format('.2f');
+    f.m.l = K.tickW(f.svg, y.ticks(5), fy) + 10;
+    y.range([f.H - f.m.b, f.m.t]);
+    const x = d3.scaleBand().domain(d.map((r) => r.k))
+      .range([f.m.l, f.W - f.m.r]).padding(isWeek ? 0.16 : 0.3);
+    K.grid(f.svg, y, f.m.l, f.W - f.m.r, 5);
+    const tip = K.tip(el);
+    f.svg.append('g').selectAll('rect').data(d).join('rect')
+      .attr('x', (r) => x(r.k)).attr('width', Math.min(32, x.bandwidth()))
+      .attr('y', (r) => y(r.v)).attr('height', (r) => Math.max(0, y(0) - y(r.v)))
+      .attr('rx', isWeek ? 2 : 4)
+      .attr('fill', (r) => (r.v >= 1.15 ? dash.colors[0]
+        : r.v <= 0.9 ? 'var(--cds-chart-status-critical)' : 'var(--cds-chart-muted)'))
+      .on('mousemove', function (e, r) {
+        const [mx, my] = d3.pointer(e, f.svg.node());
+        const lines = [{ name: 'Seasonal index', value: d3.format('.3f')(r.v) }];
+        if (r.raw !== null) lines.push({ name: 'Average week', value: F.usd(r.raw) });
+        tip.show(isWeek ? 'Week ' + r.k : r.k, lines, mx, my);
+      })
+      .on('mouseleave', tip.hide);
+    f.svg.append('line').attr('x1', f.m.l).attr('x2', f.W - f.m.r)
+      .attr('y1', y(1)).attr('y2', y(1))
+      .attr('stroke', 'var(--cds-chart-reference)').attr('stroke-dasharray', '4 3');
+    const every = isWeek ? Math.max(1, Math.round(d.length / Math.max(4, f.W / 56))) : 1;
+    K.axis(f.svg.append('g').attr('transform', `translate(0,${f.H - f.m.b})`)
+      .call(d3.axisBottom(x).tickSize(0)
+        .tickValues(x.domain().filter((v, i) => i % every === 0))));
+    K.axis(f.svg.append('g').attr('transform', `translate(${f.m.l},0)`)
+      .call(d3.axisLeft(y).ticks(5).tickFormat(fy).tickSize(0)))
+      .select('.domain').remove();
+  };
+
+  /* ---- forecast ---- */
+  let fcBand = true;
+  K.chips('fb', (v, b) => { fcBand = b.getAttribute('aria-pressed') === 'true'; draw.fc(); }, true);
+  draw.fc = function () {
+    const el = document.getElementById('ch-fc');
+    if (!el || el.offsetParent === null) return;
+    if (K.err('weekly') || K.err('forecast')) return K.failLine(el, 290);
+    const hist = K.rows('weekly');
+    const fut = K.rows('forecast').filter((r) => r.kind === 'forecast');
+    const f = K.frame(el, 310, { t: 24 });
+    if (!hist.length || !fut.length) return;
+    const h = hist.slice(-60).map((r) => ({ date: K.parseDate(r.date), v: +r.sales }));
+    const g = fut.map((r) => ({
+      date: K.parseDate(r.date), v: +r.value, lo: +r.lo, hi: +r.hi,
+    }));
+    const ymax = Math.max(d3.max(h, (r) => r.v),
+      d3.max(g, (r) => (fcBand ? r.hi : r.v))) * 1.06;
+    const y = d3.scaleLinear([0, ymax], [0, 1]);
+    f.m.l = K.tickW(f.svg, y.ticks(5), F.usdAxis) + 10;
+    y.range([f.H - f.m.b, f.m.t]);
+    const x = d3.scaleUtc([h[0].date, g[g.length - 1].date], [f.m.l, f.W - f.m.r]);
+    K.grid(f.svg, y, f.m.l, f.W - f.m.r, 5);
+    const joinPt = { date: h[h.length - 1].date, v: h[h.length - 1].v, lo: h[h.length - 1].v, hi: h[h.length - 1].v };
+    if (fcBand) {
+      f.svg.append('path').attr('fill', dash.colors[0]).attr('fill-opacity', 0.14)
+        .attr('d', d3.area().x((r) => x(r.date)).y0((r) => y(Math.max(0, r.lo)))
+          .y1((r) => y(Math.min(r.hi, ymax)))([joinPt].concat(g)));
+    }
+    f.svg.append('line').attr('x1', x(joinPt.date)).attr('x2', x(joinPt.date))
+      .attr('y1', f.m.t).attr('y2', f.H - f.m.b)
+      .attr('stroke', 'var(--cds-chart-reference)').attr('stroke-dasharray', '3 3');
+    f.svg.append('text').attr('x', x(joinPt.date) + 5).attr('y', f.m.t - 8)
+      .attr('font-size', 11).attr('fill', 'var(--color-fg-muted)').text('forecast →');
+    const ln = d3.line().x((r) => x(r.date)).y((r) => y(r.v));
+    f.svg.append('path').attr('fill', 'none').attr('stroke', dash.colors[0])
+      .attr('stroke-width', 2).attr('stroke-linecap', 'round').attr('d', ln(h));
+    f.svg.append('path').attr('fill', 'none').attr('stroke', dash.colors[0])
+      .attr('stroke-width', 2).attr('stroke-dasharray', '5 4')
+      .attr('stroke-linecap', 'round').attr('d', ln([joinPt].concat(g)));
+    const all = h.map((r) => Object.assign({ fut: false }, r))
+      .concat(g.map((r) => Object.assign({ fut: true }, r)));
+    const tip = K.tip(el);
+    const hov = f.svg.append('circle').attr('r', 4).attr('fill', dash.colors[0])
+      .attr('stroke', 'var(--color-panel)').attr('stroke-width', 2).attr('opacity', 0);
+    f.svg.append('rect').attr('x', f.m.l).attr('y', f.m.t)
+      .attr('width', Math.max(1, f.W - f.m.l - f.m.r))
+      .attr('height', Math.max(1, f.H - f.m.t - f.m.b)).attr('fill', 'transparent')
+      .on('mousemove', function (e) {
+        const [mx] = d3.pointer(e, this);
+        const dt = x.invert(mx + f.m.l);
+        const i = d3.leastIndex(all, (a, b) => Math.abs(a.date - dt) - Math.abs(b.date - dt));
+        const r = all[i];
+        hov.attr('opacity', 1).attr('cx', x(r.date)).attr('cy', y(r.v));
+        const lines = [{
+          name: r.fut ? 'Forecast' : 'Actual', value: F.usdFull(r.v), color: dash.colors[0],
+        }];
+        if (r.fut && fcBand) {
+          lines.push({ name: '95% low', value: F.usdFull(r.lo) });
+          lines.push({ name: '95% high', value: F.usdFull(r.hi) });
+        }
+        tip.show(F.date(r.date), lines, x(r.date), y(r.v));
+      })
+      .on('mouseleave', () => { tip.hide(); hov.attr('opacity', 0); });
+    K.axis(f.svg.append('g').attr('transform', `translate(0,${f.H - f.m.b})`)
+      .call(d3.axisBottom(x).ticks(Math.max(2, Math.floor(f.W / 110)))));
+    K.axis(f.svg.append('g').attr('transform', `translate(${f.m.l},0)`)
+      .call(d3.axisLeft(y).ticks(5).tickFormat(F.usdAxis).tickSize(0)))
+      .select('.domain').remove();
+  };
+
+  /* ---- backtest ---- */
+  draw.bt = function () {
+    const el = document.getElementById('ch-bt');
+    if (!el || el.offsetParent === null) return;
+    if (K.err('forecast')) return K.failLine(el, 280);
+    const rows = K.rows('forecast').filter((r) => r.kind === 'backtest');
+    const f = K.frame(el, 300, { t: 24 });
+    if (!rows.length) return;
+    const d = rows.map((r) => ({
+      date: K.parseDate(r.date), a: +r.value, p: +r.predicted,
+    })).sort((x1, x2) => x1.date - x2.date);
+    const ymax = d3.max(d, (r) => Math.max(r.a, r.p)) * 1.06;
+    const ymin = d3.min(d, (r) => Math.min(r.a, r.p)) * 0.92;
+    const y = d3.scaleLinear([ymin, ymax], [0, 1]);
+    f.m.l = K.tickW(f.svg, y.ticks(5), F.usdAxis) + 10;
+    y.range([f.H - f.m.b, f.m.t]);
+    const x = d3.scaleUtc(d3.extent(d, (r) => r.date), [f.m.l, f.W - f.m.r]);
+    K.grid(f.svg, y, f.m.l, f.W - f.m.r, 5);
+    const mk = (key, color, dashArr) => f.svg.append('path').attr('fill', 'none')
+      .attr('stroke', color).attr('stroke-width', 2).attr('stroke-linecap', 'round')
+      .attr('stroke-dasharray', dashArr || null)
+      .attr('d', d3.line().x((r) => x(r.date)).y((r) => y(r[key]))(d));
+    mk('a', dash.colors[0]);
+    mk('p', dash.colors[3], '5 4');
+    let lx = f.m.l;
+    const lg = f.svg.append('g');
+    [['Actual', dash.colors[0], null], ['Predicted', dash.colors[3], '5 4']]
+      .forEach(([nm, c, da]) => {
+        const gg = lg.append('g').attr('transform', `translate(${lx},12)`);
+        gg.append('line').attr('x1', 0).attr('x2', 14).attr('y1', 0).attr('y2', 0)
+          .attr('stroke', c).attr('stroke-width', 2).attr('stroke-dasharray', da);
+        const tx = gg.append('text').attr('x', 19).attr('y', 3.5).attr('font-size', 11)
+          .attr('fill', 'var(--color-fg-muted)').text(nm);
+        lx += 19 + tx.node().getComputedTextLength() + 14;
+      });
+    const tip = K.tip(el);
+    f.svg.append('g').selectAll('circle').data(d).join('circle')
+      .attr('cx', (r) => x(r.date)).attr('cy', (r) => y(r.a)).attr('r', 3)
+      .attr('fill', dash.colors[0])
+      .on('mousemove', function (e, r) {
+        const [mx, my] = d3.pointer(e, f.svg.node());
+        tip.show(F.date(r.date), [
+          { name: 'Actual', value: F.usdFull(r.a), color: dash.colors[0] },
+          { name: 'Predicted', value: F.usdFull(r.p), color: dash.colors[3] },
+          { name: 'Error', value: d3.format('+.2%')((r.p - r.a) / r.a) },
+        ], mx, my);
+      })
+      .on('mouseleave', tip.hide);
+    K.axis(f.svg.append('g').attr('transform', `translate(0,${f.H - f.m.b})`)
+      .call(d3.axisBottom(x).ticks(Math.max(2, Math.floor(f.W / 100)))));
+    K.axis(f.svg.append('g').attr('transform', `translate(${f.m.l},0)`)
+      .call(d3.axisLeft(y).ticks(5).tickFormat(F.usdAxis).tickSize(0)))
+      .select('.domain').remove();
+  };
+
+  draw.yoy = function () {
+    const t = document.getElementById('t-yoy');
+    if (!t) return;
+    const rows = K.rows('seasonality').filter((r) => r.kind === 'year')
+      .sort((a, b) => +a.sort - +b.sort);
+    if (!rows.length) return;
+    K.fillTable(t, rows, [
+      { get: (r) => r.label },
+      { get: (r) => F.usd(+r.value) },
+      {
+        get: (r) => (r.index === '' ? null : F.pctS(+r.index)),
+        cls: (r) => (r.index !== '' && +r.index >= 0 ? 'wsi-pos' : 'wsi-neg'),
+      },
+    ], (r) => r.label);
+  };
+
+  draw.expTable = function () {
+    const t = document.getElementById('t-exp');
+    if (!t) return;
+    const rows = K.rows('experiments');
+    if (!rows.length) return;
+    K.fillTable(t, rows.slice().sort((a, b) => +a.n - +b.n), [
+      { get: (r) => r.n },
+      { get: (r) => r.title },
+      { get: (r) => r.method, wrap: true },
+      { get: (r) => r.headline, wrap: true },
+    ], (r) => r.n);
+  };
+
+  return draw;
+}());
+
+/* ------------------------------------------------------------- wiring */
+(function () {
+  const K = window.W;
+  const PANES = {
+    overview: ['weekly', 'calendar', 'findings'],
+    impact: ['hol', 'topWeeks', 'holLift', 'fmt', 'fmtTable', 'pareto', 'tree',
+      'growth', 'lorenz', 'deptTable', 'monthly', 'heat', 'md', 'econ', 'gap'],
+    stores: ['sparks', 'storeTable', 'pca', 'elbow', 'parallel', 'cluTable',
+      'bubble', 'vol', 'box'],
+    stats: ['hist', 'fit', 'coef', 'resid', 'elas', 'sampTable', 'clt', 'sampConv',
+      'pdf', 'excTable', 'pctl', 'overlay', 'qq', 'fitsTable', 'corr'],
+    forecast: ['decomp', 'season', 'fc', 'bt', 'yoy'],
+    method: ['expTable'],
+  };
+  const OWNER = {};
+  Object.keys(window.D1).forEach((k) => { OWNER[k] = window.D1; });
+  Object.keys(window.D2).forEach((k) => { OWNER[k] = window.D2; });
+  Object.keys(window.D3).forEach((k) => { OWNER[k] = window.D3; });
+  Object.keys(window.D4).forEach((k) => { OWNER[k] = window.D4; });
+
+  let active = 'overview';
+
+  function paint() {
+    (PANES[active] || []).forEach((fn) => {
+      const o = OWNER[fn];
+      if (!o || typeof o[fn] !== 'function') return;
+      try { o[fn](); } catch (err) { console.error(fn, err); }
+    });
+  }
+
+  function show(name, fromLink) {
+    if (!PANES[name]) return;
+    active = name;
+    Object.keys(PANES).forEach((k) => {
+      const pane = document.getElementById(k);
+      const btn = document.getElementById('tab-' + k);
+      if (pane) pane.hidden = k !== name;
+      if (btn) btn.setAttribute('aria-selected', k === name ? 'true' : 'false');
+    });
+    paint();
+    if (!fromLink) dash.setLink(name);
+  }
+
+  Object.keys(PANES).forEach((k) => {
+    const btn = document.getElementById('tab-' + k);
+    if (btn) btn.addEventListener('click', () => show(k));
+  });
+
+  let first = true;
+  dash.onData(() => {
+    K.fillKpis();
+    paint();
+    if (first) {
+      first = false;
+      const hash = (location.hash || '').slice(1);
+      if (PANES[hash] && hash !== active) show(hash, true);
+      else {
+        const el = document.getElementById(hash);
+        if (el) { el.scrollIntoView(); dash.setLink(hash); }
+      }
+    }
+  });
+}());
+</script>
+<script>
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => window.dash.boot());
+  } else {
+    window.dash.boot();
+  }
+</script>
+</body>
+</html>
