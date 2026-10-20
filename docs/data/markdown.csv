@@ -1,0 +1,11 @@
+kind,label,avg_sales,records_or_total,markdown_or_share,vs_lightest_or_active,corr_within_store
+band,Q1 lightest,9477.0,30342,2474.0,0.0,
+band,Q2,14679.0,30301,7924.0,54.89,
+band,Q3,17347.0,30256,13315.0,83.04,
+band,Q4,19498.0,30289,20269.0,105.74,
+band,Q5 deepest,19903.0,30244,49129.0,110.01,
+channel,MarkDown1,7210.0,1091897842.0,38.8,99.5,-0.0363
+channel,MarkDown2,2450.0,370970765.0,13.2,72.5,-0.037
+channel,MarkDown3,1303.0,197331717.0,7.0,90.3,0.1407
+channel,MarkDown4,3015.0,456616070.0,16.2,89.1,-0.0236
+channel,MarkDown5,4629.0,700974954.0,24.9,100.0,0.008

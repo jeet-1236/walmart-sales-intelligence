@@ -1,0 +1,9 @@
+n,id,title,method,headline
+1,exp1,Descriptive Statistics,"Quartiles, IQR, Tukey fences, boxplots by store format",8.4% of records are outliers but carry 39.6% of revenue
+2,exp2,Linear Regression,"OLS on economic and structural drivers, three specifications",R² rises from 0.0017 (macro only) to 0.672 at store-week level
+3,exp3,Sampling,"Simple random, stratified and systematic sampling vs population","A 10,000-record sample estimates the mean within 0.76%"
+4,exp4,Clustering (K-Means),"Elbow + silhouette on six store features, PCA projection","Four store archetypes, silhouette 0.265"
+5,exp5,Probability Distribution,"Weekly sales as a random variable: PDF, CDF, exceedance","P(sales > $50k) = 0.076, carrying 37% of revenue"
+6,exp6,Theoretical Distributions,"Normal, log-normal, gamma and exponential fits with KS tests",Log-normal fits best (KS 0.097); Normal is rejected
+7,exp7,Statistical Inference,"Welch t-test, ANOVA, Mann-Whitney, chi-square, correlations",Holiday lift of 7.1% is significant (p<0.001) but small (d=0.046)
+8,exp8,Time Series Analysis,"Moving averages, multiplicative decomposition, 14-week forecast",Backtest MAPE 1.8% over 13 held-out weeks

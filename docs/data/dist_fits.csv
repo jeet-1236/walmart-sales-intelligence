@@ -1,0 +1,5 @@
+name,params,ks_stat,ks_p,note
+Normal,"mu=16190.1, sigma=23123.7",0.2403,0.0,
+Log-normal,"shape=2.0555, scale=4985.13",0.0975,0.0,"fitted on 4,984 positive-sales records"
+Exponential,"loc=0.08, scale=16242.45",0.1482,0.0,
+Gamma,"a=0.5326, scale=30499.09",0.0238,0.007007,
