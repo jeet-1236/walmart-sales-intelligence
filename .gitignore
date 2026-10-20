@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.streamlit/secrets.toml
+
+# Raw Walmart source files and the 40 MB integrated table are not needed to run
+# the app; it reads the pre-computed tables in dashboard_sources/ instead.
+walmart_integrated_dataset.csv
+train - Walmart Sales Forecast.csv
+test - Walmart Sales Forecast.csv
+features - Walmart Sales Forecast.csv
+stores - Walmart Sales Forecast.csv
