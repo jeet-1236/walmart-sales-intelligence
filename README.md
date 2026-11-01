@@ -11,14 +11,18 @@ That page is the static build in [`docs/`](docs/). The same dashboard also exist
 
 ![tabs: Overview, Business impact, Stores, Statistics, Forecast, Method](https://img.shields.io/badge/tabs-6-informational)
 
-## Report
+## Documents
 
-A Word write-up of the whole analysis is in the repository:
-**[Walmart Sales Intelligence.docx](Walmart%20Sales%20Intelligence.docx)** —
-27 sections, 15 figures and 12 tables, with the live dashboard and repository
-links on the first page. Its figures are rendered by `build_report_figures.py`
-from the same tables the dashboard reads, so the document and the dashboard
-cannot disagree.
+Two Word write-ups, both with the dashboard and repository links on the first
+page:
+
+| Document | For |
+| --- | --- |
+| **[From Dataset to Dashboard.docx](From%20Dataset%20to%20Dashboard.docx)** | A plain-language walkthrough of the whole process: the four source files, how they were joined, what the data health check found, the eight experiments in ordinary words, how the results reach the screen, and which tool did what. Two diagrams, no jargon. |
+| **[Walmart Sales Intelligence.docx](Walmart%20Sales%20Intelligence.docx)** | The analytical report: 27 sections, 15 figures and 12 tables covering the results themselves. |
+
+Both documents' figures are rendered from the same `dashboard_sources` tables
+the dashboard reads, so they cannot disagree with it.
 
 ## What it shows
 
