@@ -520,6 +520,11 @@ r.bold = True
 r.font.size = Pt(9.5)
 link(p, REPO, REPO)
 
+cp = doc.core_properties
+cp.author = "jeet-1236"
+cp.last_modified_by = "jeet-1236"
+cp.title = OUT.replace(".docx", "")
+
 doc.save(OUT)
 print("wrote " + OUT + "  (" + str(round(os.path.getsize(OUT) / 1024)) + " KB)")
 print("  paragraphs " + str(len(doc.paragraphs)) + ", tables "

@@ -9,3 +9,6 @@ train - Walmart Sales Forecast.csv
 test - Walmart Sales Forecast.csv
 features - Walmart Sales Forecast.csv
 stores - Walmart Sales Forecast.csv
+
+# Word creates these while a document is open
+~$*

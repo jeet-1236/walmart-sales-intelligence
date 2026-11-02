@@ -327,6 +327,11 @@ para("A longer walkthrough of the process is in " + chr(8220)
      "in " + chr(8220) + "Walmart Sales Intelligence" + chr(8221)
      + ". Both are in the repository.", size=9, color=FADE, italic=True)
 
+cp = doc.core_properties
+cp.author = "jeet-1236"
+cp.last_modified_by = "jeet-1236"
+cp.title = OUT.replace(".docx", "")
+
 doc.save(OUT)
 print("wrote " + OUT + "  (" + str(round(os.path.getsize(OUT) / 1024)) + " KB)")
 print("  paragraphs " + str(len(doc.paragraphs)) + ", tables "
