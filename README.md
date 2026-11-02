@@ -18,6 +18,7 @@ page:
 
 | Document | For |
 | --- | --- |
+| **[Walmart Sales Intelligence.pptx](Walmart%20Sales%20Intelligence.pptx)** | A 19-slide presentation of the project and the dashboard, with speaker notes on every slide. Roughly a 30-minute talk. |
 | **[Project Summary.docx](Project%20Summary.docx)** | The short one, about three pages: what we did, the dataset, the thirteen preprocessing techniques and why each was needed, and what the dashboard looks like. Start here. |
 | **[From Dataset to Dashboard.docx](From%20Dataset%20to%20Dashboard.docx)** | A plain-language walkthrough of the whole process: the four source files, how they were joined, what the data health check found, the eight experiments in ordinary words, how the results reach the screen, and which tool did what. Two diagrams, no jargon. |
 | **[Walmart Sales Intelligence.docx](Walmart%20Sales%20Intelligence.docx)** | The analytical report: 27 sections, 15 figures and 12 tables covering the results themselves. |
